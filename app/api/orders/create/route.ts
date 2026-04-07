@@ -1,0 +1,113 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const {
+      businessId, customerName, customerPhone, customerEmail,
+      deliveryAddress, orderType, items, subtotal,
+      discountApplied, finalPrice, promoId,
+    } = body
+
+    // Validate required fields
+    if (!businessId || !customerName || !customerPhone || !items?.length) {
+      return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
+    }
+
+    const supabase = await createClient()
+
+    // Generate order number
+    const orderNumber = `RSH-${Date.now().toString(36).toUpperCase()}`
+
+    // Insert order
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        order_number: orderNumber,
+        business_id: businessId,
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        customer_email: customerEmail || null,
+        delivery_address: deliveryAddress || null,
+        order_type: orderType,
+        items_count: items.reduce((s: number, i: { quantity: number }) => s + i.quantity, 0),
+        subtotal,
+        discount_applied: discountApplied || 0,
+        final_price: finalPrice,
+        status: 'pending',
+        payment_status: 'pending',
+        promo_id: promoId || null,
+      })
+      .select('id')
+      .single()
+
+    if (orderError) throw orderError
+
+    // Insert order items
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .insert(
+        items.map((item: { menuItemId: string; quantity: number; unitPrice: number; specialInstructions?: string }) => ({
+          order_id: order.id,
+          menu_item_id: item.menuItemId,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          special_instructions: item.specialInstructions || null,
+        }))
+      )
+
+    if (itemsError) throw itemsError
+
+    // Create MercadoPago preference (Chile) or Stripe PaymentIntent (Miami)
+    // For now, return a redirect to payment — will integrate once MP keys are set
+    const isMiami = businessId === 'miami-wynwood'
+    let preferenceUrl: string | null = null
+
+    if (!isMiami && process.env.MERCADOPAGO_ACCESS_TOKEN) {
+      const mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
+        },
+        body: JSON.stringify({
+          items: items.map((item: { menuItemId: string; quantity: number; unitPrice: number }) => ({
+            id: item.menuItemId,
+            title: `Plato Rishtedar`,
+            quantity: item.quantity,
+            unit_price: item.unitPrice / 1, // MercadoPago uses CLP integers
+            currency_id: 'CLP',
+          })),
+          payer: {
+            name: customerName,
+            phone: { number: customerPhone },
+            email: customerEmail || undefined,
+          },
+          external_reference: order.id,
+          back_urls: {
+            success: `${process.env.NEXT_PUBLIC_APP_URL}/order/confirmation?order=${order.id}`,
+            failure: `${process.env.NEXT_PUBLIC_APP_URL}/order/checkout?error=1`,
+            pending: `${process.env.NEXT_PUBLIC_APP_URL}/order/confirmation?order=${order.id}&status=pending`,
+          },
+          auto_return: 'approved',
+          notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/mercadopago`,
+        }),
+      })
+
+      if (mpRes.ok) {
+        const mpData = await mpRes.json()
+        preferenceUrl = mpData.init_point
+      }
+    }
+
+    return NextResponse.json({
+      orderId: order.id,
+      orderNumber,
+      preferenceUrl,
+    })
+  } catch (error) {
+    console.error('[orders/create]', error)
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+  }
+}

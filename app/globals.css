@@ -1,26 +1,188 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ─── RISHTEDAR BRAND THEME ──────────────────────────────────────────────── */
+
+@theme {
+  /* Fonts */
+  --font-display: var(--font-cormorant), "Georgia", serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+
+  /* Brand Palette — Rishtedar Magenta / Purple */
+  --color-brand-950: #120008;
+  --color-brand-900: #280014;
+  --color-brand-800: #4d0a36;
+  --color-brand-700: #91226f;
+  --color-brand-600: #a82882;
+  --color-brand-500: #c43e9a;
+  --color-brand-400: #d46ab4;
+  --color-brand-300: #e299cc;
+  --color-brand-200: #f0c4e2;
+  --color-brand-100: #f8e6f4;
+  --color-brand-50: #fdf3fb;
+
+  /* Gold / Saffron */
+  --color-gold-950: #2c1d00;
+  --color-gold-900: #4a3000;
+  --color-gold-800: #7a5000;
+  --color-gold-700: #a87000;
+  --color-gold-600: #c9952a;
+  --color-gold-500: #d4a017;
+  --color-gold-400: #e4b84a;
+  --color-gold-300: #f0ce7a;
+  --color-gold-200: #f7e3b0;
+  --color-gold-100: #fdf3d9;
+  --color-gold-50: #fffbf0;
+
+  /* Warm Neutrals */
+  --color-warm-950: #0f0a07;
+  --color-warm-900: #1a1209;
+  --color-warm-800: #2d2118;
+  --color-warm-700: #4a3728;
+  --color-warm-600: #6b5240;
+  --color-warm-500: #8c6f5a;
+  --color-warm-400: #ae9180;
+  --color-warm-300: #ccb8ad;
+  --color-warm-200: #e4d8d1;
+  --color-warm-100: #f5efeb;
+  --color-warm-50: #faf7f4;
+
+  /* Ivory / Cream */
+  --color-ivory: #faf7f0;
+  --color-cream: #f5f0e8;
+
+  /* Semantic */
+  --color-background: var(--color-ivory);
+  --color-foreground: var(--color-warm-950);
+  --color-surface: #ffffff;
+
+  /* Typography scale */
+  --text-display-2xl: 5rem;
+  --text-display-xl: 4rem;
+  --text-display-lg: 3.25rem;
+  --text-display-md: 2.5rem;
+  --text-display-sm: 2rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ─── BASE STYLES ────────────────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-ivory);
+  color: var(--color-warm-950);
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+}
+
+/* ─── TYPOGRAPHY ─────────────────────────────────────────────────────────── */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+/* Display headings (hero, section titles) */
+.display {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 300;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+/* ─── SCROLLBAR ──────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-warm-100);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-brand-700);
+  border-radius: 3px;
+}
+
+/* ─── SELECTION ──────────────────────────────────────────────────────────── */
+
+::selection {
+  background-color: var(--color-brand-700);
+  color: white;
+}
+
+/* ─── ANIMATIONS ─────────────────────────────────────────────────────────── */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease both;
+}
+
+/* ─── UTILITIES ──────────────────────────────────────────────────────────── */
+
+/* Gold gradient text */
+.text-gold-gradient {
+  background: linear-gradient(135deg, #c9952a 0%, #f0ce7a 50%, #c9952a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Noise texture overlay (for hero) */
+.noise-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--color-gold-500);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Smooth image loading */
+img {
+  display: block;
 }
