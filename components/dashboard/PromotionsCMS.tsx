@@ -125,7 +125,7 @@ export function PromotionsCMS() {
       }
       setPromotions(prev => [newPromo, ...prev])
     } else {
-      setPromotions(prev => [data, ...prev])
+      if (data) setPromotions(prev => [data, ...prev])
     }
 
     toast.success('¡Promoción guardada! Activa en el sitio de inmediato.')
