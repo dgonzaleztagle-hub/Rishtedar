@@ -15,13 +15,13 @@ export function Footer() {
             <p className="font-display text-2xl italic text-ivory">Únete al círculo Rishtedar</p>
             <p className="text-warm-400 text-sm mt-1">Recibe promociones exclusivas, nuevos platos y eventos especiales.</p>
           </div>
-          <form action="/api/newsletter/subscribe" method="POST" className="flex gap-0 w-full max-w-md">
+          <form action="/api/newsletter/subscribe" method="POST" className="flex flex-col sm:flex-row gap-2 sm:gap-0 w-full max-w-md">
             <input
               type="email"
               name="email"
               placeholder="tu@correo.com"
               required
-              className="flex-1 bg-warm-900 border border-warm-700 border-r-0 px-4 py-3 text-warm-100 text-sm placeholder:text-warm-600 focus:outline-none focus:border-gold-600 transition-colors"
+              className="flex-1 bg-warm-900 border border-warm-700 sm:border-r-0 px-4 py-3 text-warm-100 text-sm placeholder:text-warm-600 focus:outline-none focus:border-gold-600 transition-colors"
             />
             <button
               type="submit"

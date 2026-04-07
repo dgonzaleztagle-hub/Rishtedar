@@ -135,7 +135,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main */}
-      <div className="flex-1 lg:ml-60 flex flex-col">
+      <div className="flex-1 lg:ml-60 flex flex-col min-w-0 overflow-x-hidden">
         {/* Top bar */}
         <header className="sticky top-0 z-40 bg-white border-b border-warm-200 px-6 py-4 flex items-center gap-4">
           <button

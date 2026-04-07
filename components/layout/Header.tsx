@@ -123,10 +123,10 @@ export function Header() {
             : 'bg-gradient-to-b from-black/60 to-transparent'
         )}
       >
-        {/* Top bar — contact info */}
+        {/* Top bar — contact info (hidden on mobile) */}
         <div
           className={cn(
-            'border-b border-gold-700/20 transition-all duration-500 overflow-hidden',
+            'hidden md:block border-b border-gold-700/20 transition-all duration-500 overflow-hidden',
             scrolled || !isHome ? 'max-h-0 opacity-0' : 'max-h-10 opacity-100'
           )}
         >

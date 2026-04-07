@@ -109,57 +109,44 @@ export function ReservationsView() {
             </div>
             <div className="divide-y divide-warm-100">
               {reservations.map(r => (
-                <div key={r.id} className="flex items-center gap-4 px-5 py-4 hover:bg-warm-50 transition-colors">
-                  {/* Time */}
-                  <div className="shrink-0 w-12 text-center">
-                    <p className="text-warm-800 font-semibold text-sm">{r.time}</p>
-                    <div className="flex items-center justify-center gap-0.5 text-warm-400 text-[10px]">
-                      <Users size={8} />{r.party}
+                <div key={r.id} className="px-4 py-3 hover:bg-warm-50 transition-colors">
+                  {/* Top row: time + name + status */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="shrink-0 w-10 text-center">
+                      <p className="text-warm-800 font-semibold text-sm">{r.time}</p>
+                      <div className="flex items-center justify-center gap-0.5 text-warm-400 text-[10px]">
+                        <Users size={8} />{r.party}
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-warm-900 text-sm">{r.name}</span>
-                      <span className="text-warm-400 text-xs">{r.local}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-warm-900 text-sm truncate">{r.name}</p>
+                      <p className="text-warm-400 text-xs truncate">{r.local}{r.request ? ` · 📝 ${r.request}` : ''}</p>
                     </div>
-                    {r.request && (
-                      <p className="text-warm-500 text-xs mt-0.5 truncate">📝 {r.request}</p>
-                    )}
+                    <span className={`shrink-0 text-[10px] px-2 py-1 font-medium ${STATUS_COLORS[r.status]}`}>
+                      {STATUS_LABELS[r.status]}
+                    </span>
                   </div>
-
-                  {/* Status */}
-                  <span className={`shrink-0 text-[10px] px-2 py-1 font-medium ${STATUS_COLORS[r.status]}`}>
-                    {STATUS_LABELS[r.status]}
-                  </span>
-
-                  {/* Actions */}
-                  <div className="shrink-0 flex items-center gap-1.5">
-                    <a
-                      href={`tel:${r.phone}`}
-                      className="p-1.5 text-warm-400 hover:text-warm-700 hover:bg-warm-100 transition-colors"
-                    >
-                      <Phone size={13} />
-                    </a>
-                    {r.status === 'confirmed' && (
-                      <>
-                        <button
-                          onClick={() => checkIn(r.id)}
-                          className="flex items-center gap-1 text-xs text-emerald-700 border border-emerald-200 hover:bg-emerald-50 px-2.5 py-1.5 transition-colors"
-                        >
-                          <CheckCircle2 size={11} />
-                          Check-in
-                        </button>
-                        <button
-                          onClick={() => noShow(r.id)}
-                          className="flex items-center gap-1 text-xs text-red-500 border border-red-100 hover:bg-red-50 px-2 py-1.5 transition-colors"
-                        >
-                          <XCircle size={11} />
-                        </button>
-                      </>
-                    )}
-                  </div>
+                  {/* Bottom row: actions (only when confirmed) */}
+                  {r.status === 'confirmed' && (
+                    <div className="flex items-center gap-2 mt-2 ml-13">
+                      <a href={`tel:${r.phone}`} className="p-1.5 text-warm-400 hover:text-warm-700 hover:bg-warm-100 transition-colors">
+                        <Phone size={12} />
+                      </a>
+                      <button
+                        onClick={() => checkIn(r.id)}
+                        className="flex items-center gap-1 text-xs text-emerald-700 border border-emerald-200 hover:bg-emerald-50 px-2.5 py-1.5 transition-colors"
+                      >
+                        <CheckCircle2 size={11} />
+                        Check-in
+                      </button>
+                      <button
+                        onClick={() => noShow(r.id)}
+                        className="flex items-center gap-1 text-xs text-red-500 border border-red-100 hover:bg-red-50 px-2 py-1.5 transition-colors"
+                      >
+                        <XCircle size={11} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

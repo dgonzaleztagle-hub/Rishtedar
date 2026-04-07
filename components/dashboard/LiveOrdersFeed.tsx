@@ -100,7 +100,7 @@ export function LiveOrdersFeed() {
 
   return (
     <div className="bg-white border border-warm-200">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-warm-200">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-warm-200">
         <div className="flex items-center gap-2">
           <ShoppingBag size={16} className="text-brand-700" />
           <h2 className="font-medium text-warm-900">Órdenes en curso</h2>
@@ -119,54 +119,31 @@ export function LiveOrdersFeed() {
           const Icon = cfg.icon
 
           return (
-            <div key={order.id} className="flex items-center gap-4 px-6 py-4 hover:bg-warm-50 transition-colors">
-              {/* Status badge */}
-              <div className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 ${cfg.bg} ${cfg.color} text-xs font-medium min-w-[110px]`}>
-                <Icon size={12} />
-                {cfg.label}
+            <div key={order.id} className="px-4 py-3 hover:bg-warm-50 transition-colors">
+              {/* Top row: name + time + price */}
+              <div className="flex items-center gap-2 min-w-0">
+                <p className="flex-1 font-medium text-warm-900 text-sm truncate">{order.customer_name}</p>
+                <span className="shrink-0 text-warm-400 text-xs">{timeAgo(order.created_at!)}</span>
+                <p className="shrink-0 text-warm-800 font-medium text-sm">{formatCLP(order.final_price!)}</p>
               </div>
-
-              {/* Order info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2">
-                  <p className="font-medium text-warm-900 text-sm">{order.customer_name}</p>
-                  <span className="text-warm-400 text-xs">{order.order_number}</span>
+              {/* Bottom row: status + type + action */}
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <div className={`flex items-center gap-1 px-2 py-1 ${cfg.bg} ${cfg.color} text-[10px] font-medium`}>
+                  <Icon size={10} />
+                  {cfg.label}
                 </div>
-                <p className="text-warm-500 text-xs mt-0.5">
-                  {ORDER_TYPE_LABEL[order.order_type!]} · {order.items_count} platos · {timeAgo(order.created_at!)}
-                </p>
+                <span className="text-warm-400 text-xs">{ORDER_TYPE_LABEL[order.order_type!]} · {order.items_count} platos</span>
+                <span className="hidden sm:inline text-warm-300 text-xs">{order.order_number}</span>
+                {status === 'pending' && (
+                  <button onClick={() => updateStatus(order.id!, 'confirmed')} className="ml-auto shrink-0 bg-brand-700 hover:bg-brand-800 text-ivory text-xs px-3 py-1 transition-colors">Confirmar</button>
+                )}
+                {status === 'confirmed' && (
+                  <button onClick={() => updateStatus(order.id!, 'preparing')} className="ml-auto shrink-0 bg-purple-600 hover:bg-purple-700 text-ivory text-xs px-3 py-1 transition-colors">Preparando</button>
+                )}
+                {status === 'preparing' && (
+                  <button onClick={() => updateStatus(order.id!, 'ready')} className="ml-auto shrink-0 bg-emerald-600 hover:bg-emerald-700 text-ivory text-xs px-3 py-1 transition-colors">Listo</button>
+                )}
               </div>
-
-              {/* Price */}
-              <div className="shrink-0 text-right">
-                <p className="text-warm-800 font-medium text-sm">{formatCLP(order.final_price!)}</p>
-              </div>
-
-              {/* Quick actions */}
-              {status === 'pending' && (
-                <button
-                  onClick={() => updateStatus(order.id!, 'confirmed')}
-                  className="shrink-0 bg-brand-700 hover:bg-brand-800 text-ivory text-xs px-3 py-1.5 transition-colors"
-                >
-                  Confirmar
-                </button>
-              )}
-              {status === 'confirmed' && (
-                <button
-                  onClick={() => updateStatus(order.id!, 'preparing')}
-                  className="shrink-0 bg-purple-600 hover:bg-purple-700 text-ivory text-xs px-3 py-1.5 transition-colors"
-                >
-                  Preparando
-                </button>
-              )}
-              {status === 'preparing' && (
-                <button
-                  onClick={() => updateStatus(order.id!, 'ready')}
-                  className="shrink-0 bg-emerald-600 hover:bg-emerald-700 text-ivory text-xs px-3 py-1.5 transition-colors"
-                >
-                  Listo
-                </button>
-              )}
             </div>
           )
         })}

@@ -29,14 +29,14 @@ function KPICard({ kpi }: { kpi: KPI }) {
   const positive = kpi.change >= 0
 
   return (
-    <div className="bg-white border border-warm-200 p-6">
-      <div className="flex items-start justify-between mb-4">
-        <p className="text-warm-500 text-xs tracking-wider uppercase">{kpi.label}</p>
-        <div className={`w-9 h-9 flex items-center justify-center ${kpi.color}`}>
-          <Icon size={16} />
+    <div className="bg-white border border-warm-200 p-4 sm:p-6">
+      <div className="flex items-start justify-between mb-3">
+        <p className="text-warm-500 text-[10px] sm:text-xs tracking-wider uppercase">{kpi.label}</p>
+        <div className={`w-8 h-8 flex items-center justify-center shrink-0 ${kpi.color}`}>
+          <Icon size={14} />
         </div>
       </div>
-      <p className="text-2xl font-semibold text-warm-900 mb-1">{kpi.value}</p>
+      <p className="text-xl sm:text-2xl font-semibold text-warm-900 mb-1 truncate">{kpi.value}</p>
       <p className={`text-xs flex items-center gap-1 ${positive ? 'text-emerald-600' : 'text-red-500'}`}>
         <TrendingUp size={11} className={positive ? '' : 'rotate-180'} />
         {positive ? '+' : ''}{kpi.change}% vs ayer
