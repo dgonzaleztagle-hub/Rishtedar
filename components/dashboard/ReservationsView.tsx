@@ -86,13 +86,13 @@ export function ReservationsView() {
       </div>
 
       {/* KPI Strip */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
         {[
-          { label: 'Total cubiertos', value: totalCovers, color: 'text-warm-900' },
-          { label: 'Check-in hecho', value: checkedIn, color: 'text-emerald-700' },
-          { label: 'Por confirmar', value: pending, color: 'text-amber-700' },
+          { label: 'Total cubiertos', value: totalCovers, color: 'text-warm-900', span: '' },
+          { label: 'Check-in hecho', value: checkedIn, color: 'text-emerald-700', span: '' },
+          { label: 'Por confirmar', value: pending, color: 'text-amber-700', span: 'col-span-2 sm:col-span-1' },
         ].map(kpi => (
-          <div key={kpi.label} className="bg-white border border-warm-200 px-5 py-4">
+          <div key={kpi.label} className={`bg-white border border-warm-200 px-4 py-3 sm:px-5 sm:py-4 ${kpi.span}`}>
             <p className="text-warm-400 text-[10px] uppercase tracking-wider">{kpi.label}</p>
             <p className={`text-3xl font-semibold mt-1 ${kpi.color}`}>{kpi.value}</p>
           </div>

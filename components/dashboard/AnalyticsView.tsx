@@ -81,12 +81,14 @@ export function AnalyticsView() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-warm-900">Analytics</h1>
-          <p className="text-warm-500 text-sm mt-0.5">ROI y métricas del negocio</p>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-warm-900">Analytics</h1>
+            <p className="text-warm-500 text-sm mt-0.5">ROI y métricas del negocio</p>
+          </div>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1 flex-wrap">
           {PERIODS.map(p => (
             <button
               key={p}
@@ -177,10 +179,10 @@ export function AnalyticsView() {
           <h2 className="font-medium text-warm-900 text-sm mb-4">Top platos más vendidos</h2>
           <div className="space-y-3">
             {TOP_DISHES.map((d, i) => (
-              <div key={d.name} className="flex items-center gap-3">
+              <div key={d.name} className="flex items-center gap-2 min-w-0">
                 <span className="shrink-0 text-warm-400 text-xs w-4">{i + 1}</span>
-                <span className="flex-1 text-warm-800 text-sm truncate">{d.name}</span>
-                <MiniBar value={d.pct} max={100} />
+                <span className="w-28 sm:flex-1 text-warm-800 text-sm truncate shrink-0">{d.name}</span>
+                <div className="flex-1 min-w-0"><MiniBar value={d.pct} max={100} /></div>
                 <span className="shrink-0 text-warm-700 text-xs font-medium w-6 text-right">{d.sold}</span>
                 <span className="shrink-0 text-warm-500 text-xs w-20 text-right hidden sm:block">{formatCLP(d.revenue)}</span>
               </div>
