@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCartStore } from '@/lib/store/cart'
 import { formatCLP } from '@/lib/utils'
@@ -38,10 +38,9 @@ export function CheckoutForm() {
   })
   const [loading, setLoading] = useState(false)
 
-  if (items.length === 0) {
-    router.push('/order')
-    return null
-  }
+  useEffect(() => {
+    if (items.length === 0) router.push('/order')
+  }, [items.length, router])
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))

@@ -367,7 +367,7 @@ export default function AppPage() {
         <div className="flex border border-warm-800">
           {([
             { key: 'circle', label: 'Mi Circle', icon: Crown },
-            { key: 'game',   label: 'Ranking',   icon: Trophy },
+            { key: 'game',   label: 'El Festín', icon: Gamepad2 },
           ] as const).map(t => {
             const Icon = t.icon
             return (
@@ -455,29 +455,38 @@ export default function AppPage() {
 
         {tab === 'game' && (
           <motion.div key="game" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            {/* Leaderboard */}
+
+            {/* Game — primero, más visible */}
+            <div className="px-4 pt-2 pb-6">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-gold-500 text-[10px] tracking-widest uppercase mb-0.5">Minijuego semanal</p>
+                  <p className="font-display text-xl italic text-ivory">El Festín</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-warm-500 text-[10px] uppercase tracking-wider mb-0.5">Intentos rankeados</p>
+                  <p className="text-ivory text-sm font-medium">{tokensLeft} / 3</p>
+                </div>
+              </div>
+              <p className="text-warm-600 text-xs mb-4">
+                Atrapa los platos indios, evita las verduras. Los 3 mejores scores de la semana ganan premios.
+              </p>
+              <RishtedarGame
+                onGameEnd={handleGameEnd}
+                tokensLeft={tokensLeft}
+              />
+            </div>
+
+            {/* Divider */}
+            <div className="mx-4 border-t border-warm-800 mb-2" />
+
+            {/* Leaderboard — debajo del juego */}
             <GameLeaderboard
               scores={leaderboard}
               businessName={identity!.favoriteLocal.replace('-', ' ')}
               weekLabel={`Semana del ${getWeekStart()}`}
             />
 
-            {/* Game */}
-            <div className="px-4 pb-8">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Gamepad2 size={14} className="text-gold-500" />
-                  <p className="text-warm-400 text-xs uppercase tracking-wider">El Festín</p>
-                </div>
-                <p className="text-warm-600 text-xs">
-                  {tokensLeft}/3 intentos rankeados
-                </p>
-              </div>
-              <RishtedarGame
-                onGameEnd={handleGameEnd}
-                tokensLeft={tokensLeft}
-              />
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
