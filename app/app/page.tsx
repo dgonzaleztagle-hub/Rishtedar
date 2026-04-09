@@ -1,15 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import {
   Crown, Star, Zap, Gift, MapPin, Clock,
   ChevronRight, Trophy, Gamepad2, ShoppingBag,
-  UtensilsCrossed,
+  UtensilsCrossed, Loader2,
 } from 'lucide-react'
 import { GameLeaderboard } from '@/components/pwa/GameLeaderboard'
 import { RishtedarGame } from '@/components/pwa/RishtedarGame'
+import { createClient } from '@/lib/supabase/client'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -61,34 +62,80 @@ function useToken(phone: string, businessId: string) {
   localStorage.setItem(key, String(used + 1))
 }
 
-// ─── Demo data ────────────────────────────────────────────────────────────────
+// ─── Types leaderboard ────────────────────────────────────────────────────────
 
-const DEMO_SCORES = [
-  { rank: 1, name: 'Vikram S.',  score: 2100 },
-  { rank: 2, name: 'Priya M.',   score: 1750 },
-  { rank: 3, name: 'Carlos R.',  score: 1400 },
-  { rank: 4, name: 'Ana G.',     score: 1050 },
-  { rank: 5, name: 'Diego P.',   score: 800  },
-]
+interface LeaderboardEntry {
+  rank: number
+  name: string
+  score: number
+  isCurrentUser: boolean
+}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
 type Tab = 'circle' | 'game'
 
 export default function AppPage() {
-  const [identity, setIdentity] = useState<ClientIdentity | null>(null)
-  const [loyalty] = useState<LoyaltyData>({
-    points: 2850,
-    tier: 'silver',
-    totalVisits: 19,
-    nextTierPoints: 5000,
-  })
-  const [tab, setTab] = useState<Tab>('circle')
+  const [identity, setIdentity]         = useState<ClientIdentity | null>(null)
+  const [loyalty, setLoyalty]           = useState<LoyaltyData | null>(null)
+  const [leaderboard, setLeaderboard]   = useState<LeaderboardEntry[]>([])
+  const [loadingLoyalty, setLoadingLoyalty] = useState(false)
+  const [tab, setTab]                   = useState<Tab>('circle')
   const [showOnboarding, setShowOnboarding] = useState(false)
-  const [form, setForm] = useState({ name: '', phone: '', favoriteLocal: '' })
-  const [tokensLeft, setTokensLeft] = useState(3)
+  const [form, setForm]                 = useState({ name: '', phone: '', favoriteLocal: '' })
+  const [tokensLeft, setTokensLeft]     = useState(3)
 
-  // Load identity from localStorage
+  // ── Fetch loyalty from Supabase ──────────────────────────────────────────────
+  const fetchLoyalty = useCallback(async (phone: string, businessId: string) => {
+    setLoadingLoyalty(true)
+    try {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('loyalty_points')
+        .select('points_current, points_total_historical, tier, total_visits')
+        .eq('customer_phone', phone)
+        .eq('business_id', businessId)
+        .maybeSingle()
+
+      if (data) {
+        setLoyalty({
+          points:         data.points_current ?? 0,
+          tier:           (data.tier as LoyaltyData['tier']) ?? 'bronze',
+          totalVisits:    data.total_visits ?? 0,
+          nextTierPoints: data.tier === 'gold' ? 5000 : data.tier === 'silver' ? 5000 : 1000,
+        })
+      } else {
+        // Usuario nuevo — sin registro aún
+        setLoyalty({ points: 0, tier: 'bronze', totalVisits: 0, nextTierPoints: 1000 })
+      }
+    } catch {
+      setLoyalty({ points: 0, tier: 'bronze', totalVisits: 0, nextTierPoints: 1000 })
+    } finally {
+      setLoadingLoyalty(false)
+    }
+  }, [])
+
+  // ── Fetch leaderboard from API ───────────────────────────────────────────────
+  const fetchLeaderboard = useCallback(async (businessId: string, phone: string) => {
+    try {
+      const res = await fetch(
+        `/api/game/score?business_id=${businessId}&week_start=${getWeekStart()}`
+      )
+      if (!res.ok) return
+      const json = await res.json()
+      const entries: LeaderboardEntry[] = (json.leaderboard ?? []).map(
+        (row: { rank: number; name: string; score: number; phone_hint: string }) => ({
+          rank:        row.rank,
+          name:        row.name,
+          score:       row.score,
+          isCurrentUser: phone.slice(-4) === row.phone_hint,
+        })
+      )
+      setLeaderboard(entries)
+    } catch { /* silencioso */ }
+  }, [])
+
+  // ── Load identity → trigger fetches ─────────────────────────────────────────
   useEffect(() => {
     const stored = localStorage.getItem('rishtedar_client')
     if (stored) {
@@ -96,11 +143,14 @@ export default function AppPage() {
         const parsed = JSON.parse(stored) as ClientIdentity
         setIdentity(parsed)
         setTokensLeft(getTokensLeft(parsed.phone, parsed.favoriteLocal || 'providencia'))
+        fetchLoyalty(parsed.phone, parsed.favoriteLocal || 'providencia')
+        fetchLeaderboard(parsed.favoriteLocal || 'providencia', parsed.phone)
       } catch { /* noop */ }
     }
-  }, [])
+  }, [fetchLoyalty, fetchLeaderboard])
 
-  function saveIdentity() {
+  // ── Save identity + upsert en loyalty_points ────────────────────────────────
+  async function saveIdentity() {
     if (!form.name || !form.phone) return
     const id: ClientIdentity = {
       name: form.name,
@@ -108,11 +158,29 @@ export default function AppPage() {
       favoriteLocal: form.favoriteLocal || 'providencia',
     }
     localStorage.setItem('rishtedar_client', JSON.stringify(id))
+
+    // Upsert: crea el registro si no existe, no sobreescribe puntos si ya existe
+    try {
+      const supabase = createClient()
+      await supabase.from('loyalty_points').upsert(
+        {
+          customer_phone: id.phone,
+          customer_name:  id.name,
+          business_id:    id.favoriteLocal,
+          tier:           'bronze',
+        },
+        { onConflict: 'customer_phone,business_id', ignoreDuplicates: true }
+      )
+    } catch { /* silencioso — igual se guarda localmente */ }
+
     setIdentity(id)
     setTokensLeft(getTokensLeft(id.phone, id.favoriteLocal))
     setShowOnboarding(false)
+    fetchLoyalty(id.phone, id.favoriteLocal)
+    fetchLeaderboard(id.favoriteLocal, id.phone)
   }
 
+  // ── Game end → post score + refresh leaderboard ──────────────────────────────
   function handleGameEnd(score: number, counted: boolean) {
     if (!identity || !counted) return
     useToken(identity.phone, identity.favoriteLocal)
@@ -122,19 +190,22 @@ export default function AppPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         customer_phone: identity.phone,
-        customer_name: identity.name,
-        business_id: identity.favoriteLocal,
+        customer_name:  identity.name,
+        business_id:    identity.favoriteLocal,
         score,
-        is_ranked: true,
+        is_ranked:  true,
         week_start: getWeekStart(),
       }),
-    }).catch(() => {})
+    })
+      .then(() => fetchLeaderboard(identity.favoriteLocal, identity.phone))
+      .catch(() => {})
   }
 
-  const tier = getTier(loyalty.points)
+  const resolvedLoyalty = loyalty ?? { points: 0, tier: 'bronze' as const, totalVisits: 0, nextTierPoints: 1000 }
+  const tier    = getTier(resolvedLoyalty.points)
   const tierCfg = TIER_CONFIG[tier]
   const TierIcon = tierCfg.icon
-  const progress = tierCfg.next ? Math.round((loyalty.points / tierCfg.next) * 100) : 100
+  const progress = tierCfg.next ? Math.round((resolvedLoyalty.points / tierCfg.next) * 100) : 100
 
   // ── Not identified ─────────────────────────────────────────────────────────
   if (!identity && !showOnboarding) {
@@ -253,18 +324,26 @@ export default function AppPage() {
                   {tierCfg.label}
                 </span>
               </div>
-              <span className="text-warm-500 text-xs">{loyalty.totalVisits} visitas</span>
+              <span className="text-warm-500 text-xs">
+                {loadingLoyalty
+                  ? <Loader2 size={12} className="animate-spin inline" />
+                  : `${resolvedLoyalty.totalVisits} visitas`
+                }
+              </span>
             </div>
 
             <p className="font-display text-4xl italic text-ivory mb-1">
-              {loyalty.points.toLocaleString('es-CL')}
+              {loadingLoyalty
+                ? <span className="text-warm-700">···</span>
+                : resolvedLoyalty.points.toLocaleString('es-CL')
+              }
               <span className="text-warm-600 text-lg ml-1">pts</span>
             </p>
 
             {tierCfg.next && (
               <>
                 <p className="text-warm-600 text-xs mb-2">
-                  {(tierCfg.next - loyalty.points).toLocaleString('es-CL')} pts para {
+                  {(tierCfg.next - resolvedLoyalty.points).toLocaleString('es-CL')} pts para {
                     tier === 'bronze' ? 'Silver' : 'Gold'
                   }
                 </p>
@@ -378,7 +457,7 @@ export default function AppPage() {
           <motion.div key="game" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             {/* Leaderboard */}
             <GameLeaderboard
-              scores={DEMO_SCORES.map(s => ({ ...s, isCurrentUser: false }))}
+              scores={leaderboard}
               businessName={identity!.favoriteLocal.replace('-', ' ')}
               weekLabel={`Semana del ${getWeekStart()}`}
             />
