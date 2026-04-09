@@ -44,13 +44,18 @@ export async function POST(req: NextRequest) {
 
     if (orderError) throw orderError
 
+    // UUID validation helper (demo IDs like "item-p01" are not valid UUIDs)
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const toUuid = (id: string | null | undefined) =>
+      id && UUID_RE.test(id) ? id : null
+
     // Insert order items
     const { error: itemsError } = await supabase
       .from('order_items')
       .insert(
         items.map((item: { menuItemId: string; itemName: string; quantity: number; unitPrice: number; specialInstructions?: string }) => ({
           order_id: order.id,
-          menu_item_id: item.menuItemId || null,
+          menu_item_id: toUuid(item.menuItemId),
           item_name: item.itemName,
           quantity: item.quantity,
           unit_price: item.unitPrice,
@@ -114,7 +119,10 @@ export async function POST(req: NextRequest) {
       preferenceUrl,
     })
   } catch (error) {
-    console.error('[orders/create]', error)
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    const msg = error instanceof Error
+      ? error.message
+      : JSON.stringify(error, Object.getOwnPropertyNames(error as object))
+    console.error('[orders/create] DETAIL:', msg)
+    return NextResponse.json({ error: 'Error interno del servidor', detail: msg }, { status: 500 })
   }
 }
