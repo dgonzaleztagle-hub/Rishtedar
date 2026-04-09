@@ -30,7 +30,7 @@ export function useActivePromotion(businessId?: string) {
         .limit(1)
 
       if (businessId) {
-        query = query.or(`local_id.is.null,local_id.eq.${businessId}`)
+        query = query.or(`business_id.is.null,business_id.eq.${businessId}`)
       }
 
       const { data } = await query

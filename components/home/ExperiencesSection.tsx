@@ -12,7 +12,7 @@ const EXPERIENCES = [
     subtitle: 'Tradición milenaria',
     description: 'Una ceremonia de bienvenida única: el ritual del lavado de manos con agua de rosas y especias.',
     photo: '/images/brand/aguamanil.png',
-    href: '/experiencias#aguamanil',
+    href: '/experiencias/aguamanil',
   },
   {
     id: 'masala',
@@ -20,7 +20,7 @@ const EXPERIENCES = [
     subtitle: 'Taller de especias',
     description: 'Aprende los secretos de las especias de la India junto a nuestros chefs.',
     photo: '/images/brand/masala.png',
-    href: '/experiencias#masala',
+    href: '/experiencias/masala',
   },
   {
     id: 'holi',
@@ -28,7 +28,7 @@ const EXPERIENCES = [
     subtitle: 'Festival de colores',
     description: 'Celebra el festival de colores más vibrante de la India.',
     photo: '/images/brand/holi.png',
-    href: '/experiencias#holi',
+    href: '/experiencias/holi',
   },
   {
     id: 'baile',
@@ -36,7 +36,7 @@ const EXPERIENCES = [
     subtitle: 'Danza clásica india',
     description: 'Música en vivo y danza bharatanatyam en una noche de cultura pura.',
     photo: '/images/brand/baile.png',
-    href: '/experiencias#baile',
+    href: '/experiencias/baile',
   },
   {
     id: 'bindi',
@@ -44,7 +44,7 @@ const EXPERIENCES = [
     subtitle: 'Mehndi Nights',
     description: 'Artistas invitados que realizan el arte del tatuaje de henna en vivo.',
     photo: '/images/brand/bindi.png',
-    href: '/experiencias#bindi',
+    href: '/experiencias/bindi',
   },
 ]
 

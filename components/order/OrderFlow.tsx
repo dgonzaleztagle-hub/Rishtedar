@@ -482,17 +482,27 @@ function MenuCard({
           })`,
         }}
       >
-        {/* Subtle dot pattern */}
-        <div
-          className="absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
-            backgroundSize: '20px 20px',
-          }}
-        />
-        <span className="relative text-5xl select-none group-hover:scale-110 transition-transform duration-300">
-          {catStyle.emoji}
-        </span>
+        {item.image_url ? (
+          <img
+            src={item.image_url}
+            alt={item.name}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <>
+            {/* Subtle dot pattern */}
+            <div
+              className="absolute inset-0 opacity-[0.06]"
+              style={{
+                backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
+                backgroundSize: '20px 20px',
+              }}
+            />
+            <span className="relative text-5xl select-none group-hover:scale-110 transition-transform duration-300">
+              {catStyle.emoji}
+            </span>
+          </>
+        )}
 
         {/* In-cart badge */}
         {cartItem && (

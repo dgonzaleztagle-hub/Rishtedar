@@ -88,23 +88,33 @@ export function ItemDetailSheet({ item, onClose }: Props) {
                 className="relative h-52 flex items-center justify-center overflow-hidden"
                 style={{ background: `linear-gradient(135deg, ${style.gradient.replace('from-', '').replace(' via-', ', ').replace(' to-', ', ')})` }}
               >
-                {/* Use the raw gradient string for inline style */}
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background: `linear-gradient(135deg, var(--from) 0%, var(--via) 50%, var(--to) 100%)`,
-                  }}
-                />
-                {/* Subtle pattern overlay */}
-                <div className="absolute inset-0 opacity-[0.04]"
-                  style={{
-                    backgroundImage: 'radial-gradient(circle at 50% 50%, white 1px, transparent 1px)',
-                    backgroundSize: '24px 24px',
-                  }}
-                />
-                <span className="relative text-7xl select-none" role="img">
-                  {style.emoji}
-                </span>
+                {item.image_url ? (
+                  <img
+                    src={item.image_url}
+                    alt={item.name}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                ) : (
+                  <>
+                    {/* Use the raw gradient string for inline style */}
+                    <div
+                      className="absolute inset-0"
+                      style={{
+                        background: `linear-gradient(135deg, var(--from) 0%, var(--via) 50%, var(--to) 100%)`,
+                      }}
+                    />
+                    {/* Subtle pattern overlay */}
+                    <div className="absolute inset-0 opacity-[0.04]"
+                      style={{
+                        backgroundImage: 'radial-gradient(circle at 50% 50%, white 1px, transparent 1px)',
+                        backgroundSize: '24px 24px',
+                      }}
+                    />
+                    <span className="relative text-7xl select-none" role="img">
+                      {style.emoji}
+                    </span>
+                  </>
+                )}
                 {/* Price badge */}
                 <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-sm px-3 py-1.5">
                   <span className="font-display text-xl text-gold-400">

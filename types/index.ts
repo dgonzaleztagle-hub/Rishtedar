@@ -118,7 +118,7 @@ export interface Promotion {
   discount_type: 'percent' | 'fixed_amount'
   discount_value: number
   applicable_to: 'all_orders' | 'delivery_only' | 'dine_in_only' | 'reservation_only'
-  local_id: string | null
+  business_id: string | null
   valid_from: string
   valid_to: string
   day_of_week: number | null // 0=Sun, 1=Mon ... 6=Sat

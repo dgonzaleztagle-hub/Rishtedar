@@ -12,7 +12,7 @@ const DEMO_PROMOTIONS: Partial<Promotion>[] = [
   {
     id: 'p1', title: 'San Valentín — Noche romántica', description: 'Descuento especial en delivery',
     discount_type: 'percent', discount_value: 40,
-    applicable_to: 'delivery_only', local_id: null,
+    applicable_to: 'delivery_only', business_id: null,
     valid_from: '2026-02-14', valid_to: '2026-02-14',
     day_of_week: null, start_hour: null, end_hour: null,
     is_active: true, usage_count: 47,
@@ -20,7 +20,7 @@ const DEMO_PROMOTIONS: Partial<Promotion>[] = [
   {
     id: 'p2', title: 'Miércoles de delivery', description: '30% OFF todos los miércoles',
     discount_type: 'percent', discount_value: 30,
-    applicable_to: 'delivery_only', local_id: null,
+    applicable_to: 'delivery_only', business_id: null,
     valid_from: '2026-01-01', valid_to: '2026-12-31',
     day_of_week: 3, start_hour: null, end_hour: null,
     is_active: true, usage_count: 128,
@@ -28,7 +28,7 @@ const DEMO_PROMOTIONS: Partial<Promotion>[] = [
   {
     id: 'p3', title: 'Happy Hour Samosas', description: '2x1 en entradas seleccionadas',
     discount_type: 'percent', discount_value: 50,
-    applicable_to: 'dine_in_only', local_id: 'providencia',
+    applicable_to: 'dine_in_only', business_id: 'providencia',
     valid_from: '2026-04-01', valid_to: '2026-06-30',
     day_of_week: null, start_hour: 18, end_hour: 19,
     is_active: true, usage_count: 23,
@@ -43,7 +43,7 @@ type FormData = {
   discount_type: 'percent' | 'fixed_amount'
   discount_value: string
   applicable_to: 'all_orders' | 'delivery_only' | 'dine_in_only' | 'reservation_only'
-  local_id: string
+  business_id: string
   valid_from: string
   valid_to: string
   day_of_week: string
@@ -54,7 +54,7 @@ type FormData = {
 const emptyForm: FormData = {
   title: '', description: '',
   discount_type: 'percent', discount_value: '',
-  applicable_to: 'all_orders', local_id: '',
+  applicable_to: 'all_orders', business_id: '',
   valid_from: '', valid_to: '',
   day_of_week: '', start_hour: '', end_hour: '',
 }
@@ -91,7 +91,7 @@ export function PromotionsCMS() {
         discount_type: form.discount_type,
         discount_value: parseFloat(form.discount_value),
         applicable_to: form.applicable_to,
-        local_id: form.local_id || null,
+        business_id: form.business_id || null,
         valid_from: form.valid_from,
         valid_to: form.valid_to,
         day_of_week: form.day_of_week ? parseInt(form.day_of_week) : null,
@@ -116,7 +116,7 @@ export function PromotionsCMS() {
         discount_type: form.discount_type,
         discount_value: parseFloat(form.discount_value),
         applicable_to: form.applicable_to,
-        local_id: form.local_id || null,
+        business_id: form.business_id || null,
         valid_from: form.valid_from, valid_to: form.valid_to,
         day_of_week: form.day_of_week ? parseInt(form.day_of_week) : null,
         start_hour: form.start_hour ? parseInt(form.start_hour) : null,
@@ -215,7 +215,7 @@ export function PromotionsCMS() {
                 </label>
                 <label className="block">
                   <span className="text-warm-500 text-xs uppercase tracking-wider mb-1.5 block">Local (opcional)</span>
-                  <select name="local_id" value={form.local_id} onChange={handleChange}
+                  <select name="business_id" value={form.business_id} onChange={handleChange}
                     className="w-full px-4 py-2.5 border border-warm-200 text-sm focus:outline-none focus:border-brand-400"
                   >
                     <option value="">Todos los locales</option>
@@ -308,10 +308,10 @@ export function PromotionsCMS() {
                       {promo.start_hour}:00–{promo.end_hour}:00
                     </span>
                   )}
-                  {promo.local_id && (
+                  {promo.business_id && (
                     <span className="flex items-center gap-1">
                       <MapPin size={11} />
-                      {LOCATIONS.find(l => l.id === promo.local_id)?.name.replace('Rishtedar ', '')}
+                      {LOCATIONS.find(l => l.id === promo.business_id)?.name.replace('Rishtedar ', '')}
                     </span>
                   )}
                   <span className="text-warm-400">Usado {promo.usage_count ?? 0} veces</span>

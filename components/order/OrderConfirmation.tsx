@@ -85,17 +85,19 @@ function ConfirmationContent() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          {orderId && (
+            <Link
+              href={`/app/track/${orderId}`}
+              className="inline-flex items-center justify-center gap-2 bg-brand-700 hover:bg-brand-800 text-ivory px-8 py-3 text-xs tracking-widest uppercase font-medium transition-colors"
+            >
+              Seguir mi pedido →
+            </Link>
+          )}
           <Link
             href="/"
             className="inline-flex items-center justify-center border border-warm-300 text-warm-700 hover:border-warm-400 px-8 py-3 text-xs tracking-widest uppercase font-medium transition-colors"
           >
             Volver al inicio
-          </Link>
-          <Link
-            href="/menu"
-            className="inline-flex items-center justify-center bg-brand-700 hover:bg-brand-800 text-ivory px-8 py-3 text-xs tracking-widest uppercase font-medium transition-colors"
-          >
-            Ver menú
           </Link>
         </div>
       </motion.div>

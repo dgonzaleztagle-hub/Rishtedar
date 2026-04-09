@@ -73,6 +73,7 @@ export function CheckoutForm() {
           orderType,
           items: items.map(i => ({
             menuItemId: i.menu_item.id,
+            itemName: i.menu_item.name,
             quantity: i.quantity,
             unitPrice: i.menu_item.price,
             specialInstructions: i.special_instructions,

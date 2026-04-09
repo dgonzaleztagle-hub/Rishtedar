@@ -276,9 +276,17 @@ function MenuItemCard({ item }: { item: typeof DEMO_MENU_ITEMS[0] }) {
           )}
         </div>
 
-        {/* Image placeholder */}
-        <div className="w-20 h-20 bg-warm-100 shrink-0 flex items-center justify-center">
-          <span className="text-warm-300 text-3xl">🍛</span>
+        {/* Image */}
+        <div className="w-20 h-20 bg-warm-100 shrink-0 flex items-center justify-center overflow-hidden">
+          {item.image_url ? (
+            <img
+              src={item.image_url}
+              alt={item.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="text-warm-300 text-3xl">🍛</span>
+          )}
         </div>
       </div>
 
