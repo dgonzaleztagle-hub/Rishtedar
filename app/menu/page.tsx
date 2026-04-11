@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { PromoBanner } from '@/components/home/PromoBanner'
@@ -36,7 +37,9 @@ export default function MenuPage() {
             </p>
           </div>
         </div>
-        <MenuCatalog />
+        <Suspense>
+          <MenuCatalog />
+        </Suspense>
       </main>
       <Footer />
     </>
