@@ -82,18 +82,9 @@ const STEPS = [
 
 // ─── component ───────────────────────────────────────────────────────────────
 
-interface Props {
-  iframeUrl: string | null
-  tenantSlug: string | null
-}
-
-export function CircleContent({ iframeUrl, tenantSlug }: Props) {
+export function CircleContent() {
   const [showJoin, setShowJoin] = useState(false)
   const router = useRouter()
-  const isLive = !!tenantSlug
-
-  // QR registration URL (public — no SSO needed)
-  const qrUrl = tenantSlug ? `https://vuelve.vip/qr/${tenantSlug}` : null
 
   return (
     <>
@@ -157,18 +148,15 @@ export function CircleContent({ iframeUrl, tenantSlug }: Props) {
             </div>
           </motion.div>
 
-          {/* Live badge */}
-          {isLive && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.6 }}
-              className="inline-flex items-center gap-2 mt-8 text-emerald-400 text-xs"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Programa activo en 5 locales
-            </motion.div>
-          )}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="inline-flex items-center gap-2 mt-8 text-emerald-400 text-xs"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Programa activo en 4 locales
+          </motion.div>
         </div>
       </section>
 
@@ -334,77 +322,50 @@ export function CircleContent({ iframeUrl, tenantSlug }: Props) {
                 {/* Top accent */}
                 <div className="h-px bg-gradient-to-r from-transparent via-gold-600/60 to-transparent" />
 
-                {isLive && qrUrl ? (
-                  // ── LIVE: embed vuelve.vip QR page ──
-                  <>
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-warm-800">
-                      <div>
-                        <p className="text-warm-500 text-[10px] tracking-widest uppercase">Rishtedar Circle</p>
-                        <p className="text-ivory text-sm font-medium">Registro gratuito</p>
-                      </div>
-                      <button
-                        onClick={() => setShowJoin(false)}
-                        className="text-warm-500 hover:text-warm-200 transition-colors"
-                      >
-                        <X size={18} />
-                      </button>
+                <div className="p-8">
+                  <div className="flex items-start justify-between mb-6">
+                    <div>
+                      <p className="text-gold-600 text-[10px] tracking-[0.3em] uppercase mb-1">Rishtedar Circle</p>
+                      <h3 className="font-display text-3xl italic text-ivory">Únete gratis</h3>
                     </div>
-                    <iframe
-                      src={qrUrl}
-                      className="w-full border-0"
-                      style={{ height: '520px' }}
-                      title="Rishtedar Circle — Registro"
-                      allow="camera"
-                    />
-                  </>
-                ) : (
-                  // ── DEMO / fallback ──
-                  <div className="p-8">
-                    <div className="flex items-start justify-between mb-6">
-                      <div>
-                        <p className="text-gold-600 text-[10px] tracking-[0.3em] uppercase mb-1">Rishtedar Circle</p>
-                        <h3 className="font-display text-3xl italic text-ivory">Únete gratis</h3>
-                      </div>
-                      <button
-                        onClick={() => setShowJoin(false)}
-                        className="text-warm-500 hover:text-warm-200 transition-colors mt-1"
-                      >
-                        <X size={18} />
-                      </button>
-                    </div>
-
-                    <div className="space-y-4 mb-6">
-                      <input
-                        type="text"
-                        placeholder="Tu nombre"
-                        className="w-full bg-warm-900 border border-warm-700 text-ivory text-sm px-4 py-3 placeholder:text-warm-600 focus:outline-none focus:border-gold-600 transition-colors"
-                      />
-                      <input
-                        type="tel"
-                        placeholder="+56 9 XXXX XXXX"
-                        className="w-full bg-warm-900 border border-warm-700 text-ivory text-sm px-4 py-3 placeholder:text-warm-600 focus:outline-none focus:border-gold-600 transition-colors"
-                      />
-                      <select className="w-full bg-warm-900 border border-warm-700 text-warm-400 text-sm px-4 py-3 focus:outline-none focus:border-gold-600 transition-colors">
-                        <option value="">Local favorito</option>
-                        <option>Providencia</option>
-                        <option>Vitacura</option>
-                        <option>La Reina</option>
-                        <option>La Dehesa</option>
-                        <option>Miami Wynwood</option>
-                      </select>
-                    </div>
-
                     <button
-                      onClick={() => router.push('/circle/dashboard')}
-                      className="w-full bg-gold-600 hover:bg-gold-500 text-warm-950 py-4 text-xs tracking-widest uppercase font-medium transition-colors"
+                      onClick={() => setShowJoin(false)}
+                      className="text-warm-500 hover:text-warm-200 transition-colors mt-1"
                     >
-                      Registrarme →
+                      <X size={18} />
                     </button>
-                    <p className="text-warm-600 text-[10px] text-center mt-3">
-                      Gratis · Sin tarjeta de crédito · Cancela cuando quieras
-                    </p>
                   </div>
-                )}
+
+                  <div className="space-y-4 mb-6">
+                    <input
+                      type="text"
+                      placeholder="Tu nombre"
+                      className="w-full bg-warm-900 border border-warm-700 text-ivory text-sm px-4 py-3 placeholder:text-warm-600 focus:outline-none focus:border-gold-600 transition-colors"
+                    />
+                    <input
+                      type="tel"
+                      placeholder="+56 9 XXXX XXXX"
+                      className="w-full bg-warm-900 border border-warm-700 text-ivory text-sm px-4 py-3 placeholder:text-warm-600 focus:outline-none focus:border-gold-600 transition-colors"
+                    />
+                    <select className="w-full bg-warm-900 border border-warm-700 text-warm-400 text-sm px-4 py-3 focus:outline-none focus:border-gold-600 transition-colors">
+                      <option value="">Local favorito</option>
+                      <option>Providencia</option>
+                      <option>Vitacura</option>
+                      <option>La Reina</option>
+                      <option>La Dehesa</option>
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={() => router.push('/circle/dashboard')}
+                    className="w-full bg-gold-600 hover:bg-gold-500 text-warm-950 py-4 text-xs tracking-widest uppercase font-medium transition-colors"
+                  >
+                    Registrarme →
+                  </button>
+                  <p className="text-warm-600 text-[10px] text-center mt-3">
+                    Gratis · Sin tarjeta de crédito · Cancela cuando quieras
+                  </p>
+                </div>
               </div>
             </motion.div>
           </>

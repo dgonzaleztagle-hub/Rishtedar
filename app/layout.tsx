@@ -96,6 +96,7 @@ export default function RootLayout({
     <html
       lang="es"
       className={`${cormorant.variable} ${inter.variable} h-full antialiased`}
+      data-scroll-behavior="smooth"
     >
       <body className="min-h-full flex flex-col bg-ivory text-warm-950">
         {children}

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sin conexión · Rishtedar</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0d0008;
+      color: #faf7f0;
+      font-family: Georgia, 'Times New Roman', serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+    }
+    .label {
+      color: #c9952a;
+      font-size: 11px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-style: italic;
+      font-weight: 300;
+      font-size: clamp(2rem, 6vw, 3.5rem);
+      margin-bottom: 1rem;
+      line-height: 1.1;
+    }
+    p {
+      color: #8a6e5a;
+      font-size: 0.95rem;
+      line-height: 1.7;
+      max-width: 380px;
+      margin-bottom: 2.5rem;
+    }
+    button {
+      background: #91226f;
+      color: #faf7f0;
+      border: none;
+      padding: 14px 36px;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    button:hover { background: #7a1d5f; }
+    .brand {
+      position: absolute;
+      bottom: 2rem;
+      color: #c9952a;
+      font-style: italic;
+      font-size: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <p class="label">Sin conexión</p>
+  <h1>Vuelve pronto<br>a la mesa</h1>
+  <p>
+    Parece que no tienes conexión a internet en este momento.
+    Revisa tu red y vuelve a intentarlo.
+  </p>
+  <button onclick="window.location.reload()">Intentar de nuevo</button>
+  <span class="brand">Rishtedar</span>
+</body>
+</html>

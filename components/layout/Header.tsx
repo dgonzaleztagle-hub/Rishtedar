@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   MapPin, Menu, X, ShoppingBag, User, Search,
-  ChevronDown, Phone, Clock, UtensilsCrossed
+  ChevronDown, Phone, Clock, UtensilsCrossed, Sparkles
 } from 'lucide-react'
 import { LOCATIONS } from '@/lib/locations'
 import { cn } from '@/lib/utils'
@@ -45,19 +45,19 @@ const NAV_ITEMS = [
         {
           title: 'Categorías',
           items: [
-            { label: 'Entradas', href: '/menu?cat=entradas' },
-            { label: 'Platos principales', href: '/menu?cat=principales' },
-            { label: 'Tandoor', href: '/menu?cat=tandoor' },
-            { label: 'Biryanis', href: '/menu?cat=biryani' },
+            { label: 'Entradas', href: '/menu?cat=cat-entradas' },
+            { label: 'Pollo', href: '/menu?cat=cat-pollo' },
+            { label: 'Cordero', href: '/menu?cat=cat-cordero' },
+            { label: 'Tandoor', href: '/menu?cat=cat-tandoor' },
+            { label: 'Arroces & Biryanis', href: '/menu?cat=cat-arroz' },
           ],
         },
         {
           title: 'Especiales',
           items: [
-            { label: 'Vegetariano', href: '/menu?tag=vegetarian' },
+            { label: 'Vegetariano', href: '/menu?cat=cat-veg' },
             { label: 'Sin gluten', href: '/menu?tag=gluten-free' },
-            { label: 'Menú ejecutivo', href: '/menu?cat=ejecutivo' },
-            { label: 'Postres', href: '/menu?cat=postres' },
+            { label: 'Postres', href: '/menu?cat=cat-postres' },
           ],
         },
       ],
@@ -257,6 +257,14 @@ export function Header() {
                 <User size={18} />
               </Link>
               <Link
+                href="/app"
+                className="hidden md:flex items-center gap-1.5 text-warm-300 hover:text-gold-400 transition-colors text-xs tracking-widest uppercase font-medium"
+                aria-label="Mi Circle"
+              >
+                <Sparkles size={14} />
+                Circle
+              </Link>
+              <Link
                 href="/order"
                 className="hidden md:flex items-center gap-2 bg-brand-700 hover:bg-brand-800 text-ivory text-xs tracking-widest uppercase font-medium px-5 py-2.5 transition-colors"
               >
@@ -355,6 +363,9 @@ export function Header() {
                 </Link>
                 <Link href="/login" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 text-warm-400 hover:text-warm-200 transition-colors text-sm">
                   <User size={16} /> Mi cuenta
+                </Link>
+                <Link href="/app" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 text-gold-500 hover:text-gold-400 transition-colors text-sm">
+                  <Sparkles size={16} /> Circle
                 </Link>
               </div>
             </div>

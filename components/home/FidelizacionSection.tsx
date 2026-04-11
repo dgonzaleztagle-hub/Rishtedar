@@ -85,7 +85,7 @@ export function FidelizacionSection() {
               <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
-              href="/login"
+              href="/app"
               className="inline-flex items-center justify-center gap-2 border border-warm-700 hover:border-warm-500 text-warm-400 hover:text-warm-200 px-8 py-4 text-xs tracking-widest uppercase font-medium transition-all duration-300"
             >
               Ya soy miembro

@@ -54,6 +54,47 @@ export default async function LocalePage({ params }: Props) {
   const loc = getLocationBySlug(slug)
   if (!loc) notFound()
 
+  // ── Miami: página simple hasta que tengan dominio propio ──────────────────
+  if (loc.country === 'US') {
+    return (
+      <>
+        <Header />
+        <main className="pt-20 min-h-screen bg-warm-950 flex flex-col items-center justify-center px-6 text-center">
+          <div className="max-w-lg">
+            <p className="text-gold-600 text-[10px] tracking-[0.3em] uppercase mb-4">Internacional</p>
+            <h1 className="font-display text-5xl sm:text-6xl italic text-ivory mb-4">
+              Rishtedar Miami
+            </h1>
+            <p className="text-warm-400 text-sm leading-relaxed mb-3">
+              Wynwood, Miami, FL
+            </p>
+            <p className="text-warm-500 text-sm mb-10 max-w-sm mx-auto leading-relaxed">
+              Nuestra experiencia llega a Miami. Visita nuestro sitio local para reservas, menú y más información.
+            </p>
+            <span
+              className="inline-flex items-center gap-2.5 bg-brand-700/50 text-ivory/60 px-10 py-4 text-xs tracking-widest uppercase font-medium cursor-not-allowed select-none"
+              aria-disabled="true"
+            >
+              <ExternalLink size={13} />
+              Ver sitio Miami
+              <span className="text-brand-400/70 text-[9px] normal-case tracking-normal ml-1">(próximamente)</span>
+            </span>
+            <div className="mt-8">
+              <Link
+                href="/locales"
+                className="flex items-center justify-center gap-1.5 text-warm-600 hover:text-warm-400 transition-colors text-sm"
+              >
+                <ArrowLeft size={13} />
+                Ver todos los locales
+              </Link>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </>
+    )
+  }
+
   const today = getTodayKey()
   const todayHours = loc.hours_json[today] ?? 'Cerrado hoy'
   const open = isOpenNow(loc.hours_json)

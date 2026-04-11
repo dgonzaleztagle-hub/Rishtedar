@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
     }
 
-    const supabase = await createClient()
+    const supabase = await createAdminClient()
 
     // Generate order number
     const orderNumber = `RSH-${Date.now().toString(36).toUpperCase()}`
@@ -44,13 +44,19 @@ export async function POST(req: NextRequest) {
 
     if (orderError) throw orderError
 
+    // UUID validation helper (demo IDs like "item-p01" are not valid UUIDs)
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const toUuid = (id: string | null | undefined) =>
+      id && UUID_RE.test(id) ? id : null
+
     // Insert order items
     const { error: itemsError } = await supabase
       .from('order_items')
       .insert(
-        items.map((item: { menuItemId: string; quantity: number; unitPrice: number; specialInstructions?: string }) => ({
+        items.map((item: { menuItemId: string; itemName: string; quantity: number; unitPrice: number; specialInstructions?: string }) => ({
           order_id: order.id,
-          menu_item_id: item.menuItemId,
+          menu_item_id: toUuid(item.menuItemId),
+          item_name: item.itemName,
           quantity: item.quantity,
           unit_price: item.unitPrice,
           special_instructions: item.specialInstructions || null,
@@ -59,12 +65,12 @@ export async function POST(req: NextRequest) {
 
     if (itemsError) throw itemsError
 
-    // Create MercadoPago preference (Chile) or Stripe PaymentIntent (Miami)
-    // For now, return a redirect to payment — will integrate once MP keys are set
+    // Payment integration
     const isMiami = businessId === 'miami-wynwood'
     let preferenceUrl: string | null = null
 
     if (!isMiami && process.env.MERCADOPAGO_ACCESS_TOKEN) {
+      // MercadoPago live flow
       const mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
         method: 'POST',
         headers: {
@@ -72,11 +78,11 @@ export async function POST(req: NextRequest) {
           Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
         },
         body: JSON.stringify({
-          items: items.map((item: { menuItemId: string; quantity: number; unitPrice: number }) => ({
-            id: item.menuItemId,
-            title: `Plato Rishtedar`,
+          items: items.map((item: { menuItemId: string; itemName: string; quantity: number; unitPrice: number }) => ({
+            id: item.menuItemId || 'item',
+            title: item.itemName,
             quantity: item.quantity,
-            unit_price: item.unitPrice / 1, // MercadoPago uses CLP integers
+            unit_price: item.unitPrice,
             currency_id: 'CLP',
           })),
           payer: {
@@ -99,6 +105,12 @@ export async function POST(req: NextRequest) {
         const mpData = await mpRes.json()
         preferenceUrl = mpData.init_point
       }
+    } else {
+      // No payment credentials configured → auto-confirm (dev/pre-launch bypass)
+      await supabase
+        .from('orders')
+        .update({ status: 'confirmed', payment_status: 'paid', payment_method: 'bypass' })
+        .eq('id', order.id)
     }
 
     return NextResponse.json({
@@ -107,7 +119,10 @@ export async function POST(req: NextRequest) {
       preferenceUrl,
     })
   } catch (error) {
-    console.error('[orders/create]', error)
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    const msg = error instanceof Error
+      ? error.message
+      : JSON.stringify(error, Object.getOwnPropertyNames(error as object))
+    console.error('[orders/create] DETAIL:', msg)
+    return NextResponse.json({ error: 'Error interno del servidor', detail: msg }, { status: 500 })
   }
 }
