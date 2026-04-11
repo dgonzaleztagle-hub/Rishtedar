@@ -45,19 +45,19 @@ const NAV_ITEMS = [
         {
           title: 'Categorías',
           items: [
-            { label: 'Entradas', href: '/menu?cat=entradas' },
-            { label: 'Platos principales', href: '/menu?cat=principales' },
-            { label: 'Tandoor', href: '/menu?cat=tandoor' },
-            { label: 'Biryanis', href: '/menu?cat=biryani' },
+            { label: 'Entradas', href: '/menu?cat=cat-entradas' },
+            { label: 'Pollo', href: '/menu?cat=cat-pollo' },
+            { label: 'Cordero', href: '/menu?cat=cat-cordero' },
+            { label: 'Tandoor', href: '/menu?cat=cat-tandoor' },
+            { label: 'Arroces & Biryanis', href: '/menu?cat=cat-arroz' },
           ],
         },
         {
           title: 'Especiales',
           items: [
-            { label: 'Vegetariano', href: '/menu?tag=vegetarian' },
+            { label: 'Vegetariano', href: '/menu?cat=cat-veg' },
             { label: 'Sin gluten', href: '/menu?tag=gluten-free' },
-            { label: 'Menú ejecutivo', href: '/menu?cat=ejecutivo' },
-            { label: 'Postres', href: '/menu?cat=postres' },
+            { label: 'Postres', href: '/menu?cat=cat-postres' },
           ],
         },
       ],

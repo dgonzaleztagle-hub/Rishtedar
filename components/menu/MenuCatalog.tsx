@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import {
@@ -28,10 +29,18 @@ const ALLERGEN_LABELS: Record<Allergen, string> = {
 }
 
 export function MenuCatalog() {
-  const [activeCat, setActiveCat] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const [activeCat, setActiveCat] = useState<string | null>(() => searchParams.get('cat'))
   const [activeTags, setActiveTags] = useState<Set<DietaryTag>>(new Set())
   const [search, setSearch] = useState('')
   const [filtersOpen, setFiltersOpen] = useState(false)
+
+  // Sync category + tag when URL params change (back/forward navigation)
+  useEffect(() => {
+    setActiveCat(searchParams.get('cat'))
+    const tag = searchParams.get('tag') as DietaryTag | null
+    if (tag) setActiveTags(new Set([tag]))
+  }, [searchParams])
 
   function toggleTag(tag: DietaryTag) {
     setActiveTags(prev => {
