@@ -149,8 +149,8 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
     s.dishQueue = Array.from({ length: PREVIEW_QUEUE_SIZE }, () => DISHES[Math.floor(Math.random() * DISHES.length)])
     s.lastTick = performance.now(); s.beltOffset = 0
     s.chefState = 'idle'; s.chefTimer = 0; s.chefBounce = 0
-    s.chefX = 30; s.chefY = RAIL_Y - 58
-    s.chefTargetX = 30; s.chefTargetY = RAIL_Y - 58
+    s.chefX = W / 2; s.chefY = RAIL_Y - 58
+    s.chefTargetX = W / 2; s.chefTargetY = RAIL_Y - 58
     s.chefWanderTimer = 0; s.penaltyFlash = 0
     s.shakeTime = 0; s.flashGreen = 0; s.flashRed = 0
     setDay(d); setService(svc); setGsPhase('playing')
@@ -276,8 +276,8 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
       // ── Chef wandering within kitchen zone ──────────────────────────────
       s.chefWanderTimer -= dt
       if (s.chefWanderTimer <= 0) {
-        // Kitchen zone: x 20..W-20, y 58..RAIL_Y-50
-        s.chefTargetX = 20 + Math.random() * (W - 40)
+        // Kitchen zone: x 92..W-20 (left 92px reserved for NEXT panel), y 58..RAIL_Y-50
+        s.chefTargetX = 92 + Math.random() * (W - 20 - 92)
         s.chefTargetY = 58 + Math.random() * (RAIL_Y - 50 - 58)
         s.chefWanderTimer = 1800 + Math.random() * 1400
       }
@@ -357,10 +357,10 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
       ctx.fillStyle = 'rgba(38,20,4,0.10)'
       ctx.fillRect(0, 48, W, RAIL_Y - 42)
 
-      // ── NEXT preview panel (Tetris-style, top-right of kitchen) ───────
+      // ── NEXT preview panel (Tetris-style, top-left of kitchen — dishes enter from left) ───────
       {
         const PW = 58, PH = 80
-        const PX = W - PW - 8, PY = 54
+        const PX = 8, PY = 54
         const PR = 14  // mini plate radius
 
         // Panel background
