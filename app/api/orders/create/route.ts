@@ -1,5 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+// ─── Loyalty helper ────────────────────────────────────────────────────────────
+// Called after order is confirmed (bypass mode or MercadoPago webhook).
+// 1 punto por cada $1.000 CLP del precio final.
+export async function awardLoyaltyPoints(
+  supabase: SupabaseClient,
+  {
+    customerPhone, customerName, businessId,
+    orderId, orderNumber, finalPrice,
+  }: {
+    customerPhone: string
+    customerName: string
+    businessId: string
+    orderId: string
+    orderNumber: string
+    finalPrice: number
+  }
+) {
+  const points = Math.floor(finalPrice / 1000)
+  if (points <= 0) return
+
+  // Try to increment existing record
+  const { data: existing } = await supabase
+    .from('loyalty_points')
+    .select('id, points_current, points_total_historical, total_visits')
+    .eq('customer_phone', customerPhone)
+    .eq('business_id', businessId)
+    .maybeSingle()
+
+  if (existing) {
+    await supabase
+      .from('loyalty_points')
+      .update({
+        points_current:          existing.points_current + points,
+        points_total_historical: existing.points_total_historical + points,
+        total_visits:            existing.total_visits + 1,
+        last_visit_at:           new Date().toISOString(),
+        // Recalculate tier
+        tier: existing.points_current + points >= 5000
+          ? 'gold'
+          : existing.points_current + points >= 1000
+            ? 'silver'
+            : 'bronze',
+      })
+      .eq('id', existing.id)
+  } else {
+    await supabase.from('loyalty_points').insert({
+      customer_phone:          customerPhone,
+      customer_name:           customerName,
+      business_id:             businessId,
+      points_current:          points,
+      points_total_historical: points,
+      total_visits:            1,
+      last_visit_at:           new Date().toISOString(),
+      tier:                    points >= 5000 ? 'gold' : points >= 1000 ? 'silver' : 'bronze',
+    })
+  }
+
+  await supabase.from('loyalty_transactions').insert({
+    customer_phone: customerPhone,
+    business_id:    businessId,
+    order_id:       orderId,
+    points_delta:   points,
+    reason:         'order',
+    notes:          `Pedido ${orderNumber} · $${finalPrice.toLocaleString('es-CL')}`,
+  })
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -111,6 +179,14 @@ export async function POST(req: NextRequest) {
         .from('orders')
         .update({ status: 'confirmed', payment_status: 'paid', payment_method: 'bypass' })
         .eq('id', order.id)
+
+      // Award loyalty points immediately on bypass (no payment gateway)
+      if (customerPhone && finalPrice > 0) {
+        await awardLoyaltyPoints(supabase, {
+          customerPhone, customerName, businessId,
+          orderId: order.id, orderNumber, finalPrice,
+        })
+      }
     }
 
     return NextResponse.json({

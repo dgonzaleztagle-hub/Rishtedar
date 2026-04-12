@@ -13,16 +13,16 @@ export const metadata: Metadata = {
 export default async function OrderPage({
   searchParams,
 }: {
-  searchParams: Promise<{ local?: string }>
+  searchParams: Promise<{ local?: string; item?: string }>
 }) {
-  const { local } = await searchParams
+  const { local, item } = await searchParams
 
   return (
     <>
       <PromoBanner />
       <Header />
       <main className="pt-20 min-h-screen bg-ivory">
-        <OrderFlow initialLocal={local} />
+        <OrderFlow initialLocal={local} initialItem={item} />
       </main>
       <Footer />
     </>

@@ -78,10 +78,10 @@ export function FidelizacionSection() {
             className="flex flex-col sm:flex-row gap-3"
           >
             <Link
-              href="/circle"
+              href="/app"
               className="inline-flex items-center justify-center gap-2 bg-gold-600 hover:bg-gold-500 text-warm-950 px-8 py-4 text-xs tracking-widest uppercase font-medium transition-all duration-300 group"
             >
-              Unirme al Circle
+              Activar mi Circle
               <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link

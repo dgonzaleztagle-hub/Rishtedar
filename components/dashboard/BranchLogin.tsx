@@ -54,7 +54,7 @@ const BRANCHES: BranchOption[] = [
     accent: '#f43f5e',
   },
   {
-    id: 'miami',
+    id: 'miami-wynwood',
     name: 'Miami',
     address: 'Brickell Ave · Coming soon',
     role: 'manager',
@@ -90,7 +90,7 @@ export function BranchLogin() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {BRANCHES.map(branch => {
             const isAdmin = branch.id === 'admin'
-            const isMiami = branch.id === 'miami'
+            const isMiami = branch.id === 'miami-wynwood'
 
             return (
               <button

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { awardLoyaltyPoints } from '@/app/api/orders/create/route'
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,6 +38,24 @@ export async function POST(req: NextRequest) {
           status: 'confirmed',
         })
         .eq('id', orderId)
+
+      // Award loyalty points now that payment is confirmed
+      const { data: order } = await supabase
+        .from('orders')
+        .select('customer_phone, customer_name, business_id, order_number, final_price')
+        .eq('id', orderId)
+        .maybeSingle()
+
+      if (order?.customer_phone) {
+        await awardLoyaltyPoints(supabase, {
+          customerPhone: order.customer_phone,
+          customerName:  order.customer_name,
+          businessId:    order.business_id,
+          orderId,
+          orderNumber:   order.order_number,
+          finalPrice:    order.final_price,
+        })
+      }
     } else if (payment.status === 'rejected' || payment.status === 'cancelled') {
       await supabase
         .from('orders')

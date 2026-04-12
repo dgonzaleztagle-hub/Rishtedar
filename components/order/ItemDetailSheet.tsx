@@ -10,13 +10,18 @@ import type { MenuItem } from '@/types'
 // ─── per-category visual identity ────────────────────────────────────────────
 
 export const CATEGORY_STYLES: Record<string, { gradient: string; emoji: string }> = {
-  'cat-entradas':    { gradient: 'from-[#3d1800] via-[#6b2d00] to-[#1a0a00]', emoji: '🥗' },
-  'cat-principales': { gradient: 'from-[#2d0005] via-[#5c0010] to-[#1a0005]', emoji: '🍛' },
-  'cat-tandoor':     { gradient: 'from-[#3d1500] via-[#7c2a00] to-[#1a0800]', emoji: '🔥' },
-  'cat-biryani':     { gradient: 'from-[#2a1a00] via-[#5c3a00] to-[#1a0f00]', emoji: '🍚' },
-  'cat-vegetariano': { gradient: 'from-[#002a10] via-[#005520] to-[#001508]', emoji: '🌿' },
-  'cat-postres':     { gradient: 'from-[#2d0020] via-[#5c0040] to-[#1a0015]', emoji: '🍮' },
-  'cat-bebidas':     { gradient: 'from-[#001a2d] via-[#003a5c] to-[#000f1a]', emoji: '☕' },
+  'cat-entradas':  { gradient: 'from-[#3d1800] via-[#6b2d00] to-[#1a0a00]', emoji: '🥗' },
+  'cat-veg':       { gradient: 'from-[#002a10] via-[#005520] to-[#001508]', emoji: '🌿' },
+  'cat-pollo':     { gradient: 'from-[#2d0005] via-[#5c0010] to-[#1a0005]', emoji: '🍛' },
+  'cat-mar':       { gradient: 'from-[#001a2d] via-[#003a5c] to-[#000f1a]', emoji: '🦐' },
+  'cat-cordero':   { gradient: 'from-[#1a0005] via-[#3d0010] to-[#0d0003]', emoji: '🥩' },
+  'cat-tandoor':   { gradient: 'from-[#3d1500] via-[#7c2a00] to-[#1a0800]', emoji: '🔥' },
+  'cat-305':       { gradient: 'from-[#1a1a00] via-[#3d3d00] to-[#0d0d00]', emoji: '🥪' },
+  'cat-naan':      { gradient: 'from-[#2a1500] via-[#5c2d00] to-[#150a00]', emoji: '🫓' },
+  'cat-arroz':     { gradient: 'from-[#2a1a00] via-[#5c3a00] to-[#1a0f00]', emoji: '🍚' },
+  'cat-postres':   { gradient: 'from-[#2d0020] via-[#5c0040] to-[#1a0015]', emoji: '🍮' },
+  'cat-kids':      { gradient: 'from-[#0d1a2d] via-[#1a3a5c] to-[#080f1a]', emoji: '⭐' },
+  'cat-bebidas':   { gradient: 'from-[#001a2d] via-[#003a5c] to-[#000f1a]', emoji: '☕' },
 }
 
 const DEFAULT_STYLE = { gradient: 'from-warm-950 via-warm-900 to-warm-950', emoji: '🍽️' }

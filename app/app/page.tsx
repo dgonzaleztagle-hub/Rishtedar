@@ -8,6 +8,7 @@ import {
   ChevronRight, Trophy, Gamepad2, ShoppingBag,
   UtensilsCrossed, Loader2,
 } from 'lucide-react'
+import QRCode from 'react-qr-code'
 import { GameLeaderboard } from '@/components/pwa/GameLeaderboard'
 import { RishtedarGame } from '@/components/pwa/RishtedarGame'
 import { createClient } from '@/lib/supabase/client'
@@ -446,6 +447,32 @@ export default function AppPage() {
                   <div>
                     <p className="text-warm-500 text-xs uppercase tracking-wider mb-0.5">Local favorito</p>
                     <p className="text-ivory text-sm capitalize">{identity!.favoriteLocal.replace('-', ' ')}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* QR Card */}
+            <div className="px-4 mb-8">
+              <div className="border border-warm-800 bg-warm-900/20 p-5">
+                <p className="text-warm-500 text-[10px] tracking-widest uppercase mb-4 text-center">
+                  Mi QR Circle
+                </p>
+                <div className="flex flex-col items-center gap-4">
+                  <div className="bg-ivory p-3">
+                    <QRCode
+                      value={`rishtedar:circle:${identity!.phone}:${identity!.favoriteLocal}`}
+                      size={140}
+                      fgColor="#1a1200"
+                      bgColor="#faf9f4"
+                    />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-ivory text-sm font-medium">{identity!.name}</p>
+                    <p className="text-warm-600 text-xs mt-0.5">{identity!.phone}</p>
+                    <p className="text-warm-700 text-[10px] mt-2">
+                      Presenta este QR al staff para acumular o canjear puntos
+                    </p>
                   </div>
                 </div>
               </div>

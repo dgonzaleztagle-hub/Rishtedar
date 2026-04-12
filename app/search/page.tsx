@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { SearchFlow } from '@/components/search/SearchFlow'
@@ -14,7 +15,9 @@ export default function SearchPage() {
     <>
       <Header />
       <main className="pt-20 min-h-screen bg-ivory">
-        <SearchFlow />
+        <Suspense>
+          <SearchFlow />
+        </Suspense>
       </main>
       <Footer />
     </>

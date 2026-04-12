@@ -17,6 +17,7 @@ interface Order {
   final_price: number
   items: string[]
   estimated_delivery_at: string | null
+  business_id: string
 }
 
 // Map internal status → client status visible
@@ -88,7 +89,7 @@ export default function TrackPage() {
 
   const handleGameEnd = useCallback((score: number, counted: boolean) => {
     if (counted && order && phone) {
-      useToken(phone, order.id)
+      useToken(phone, order.business_id)
       setTokensLeft(prev => Math.max(0, prev - 1))
       // POST score to API (sin bloquear)
       fetch('/api/game/score', {
@@ -97,7 +98,7 @@ export default function TrackPage() {
         body: JSON.stringify({
           customer_phone: phone,
           customer_name: JSON.parse(localStorage.getItem('rishtedar_client') || '{}')?.name || 'Anónimo',
-          business_id: order?.id,
+          business_id: order?.business_id,
           score,
           is_ranked: true,
           week_start: getWeekStart(),

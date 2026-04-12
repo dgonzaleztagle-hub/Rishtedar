@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Search, MapPin, UtensilsCrossed } from 'lucide-react'
 import { DEMO_MENU_ITEMS } from '@/lib/data/menu-demo'
 import { LOCATIONS } from '@/lib/locations'
@@ -9,7 +10,14 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export function SearchFlow() {
-  const [query, setQuery] = useState('')
+  const searchParams = useSearchParams()
+  const [query, setQuery] = useState(searchParams.get('q') ?? '')
+
+  // Sync if URL param changes (e.g. back/forward nav)
+  useEffect(() => {
+    const q = searchParams.get('q')
+    if (q !== null) setQuery(q)
+  }, [searchParams])
 
   const results = useMemo(() => {
     if (!query || query.length < 2) return { items: [], locations: [] }

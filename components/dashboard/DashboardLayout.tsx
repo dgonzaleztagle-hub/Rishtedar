@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   LayoutDashboard, ShoppingBag, CalendarCheck, BarChart3,
-  Tag, UtensilsCrossed, Menu, X, ChevronRight, Truck, MapPin, LayoutGrid, Clock
+  Tag, UtensilsCrossed, Menu, X, ChevronRight, Truck, MapPin, LayoutGrid, Clock,
+  QrCode, Gift,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
@@ -19,6 +20,8 @@ const NAV = [
   { href: '/dashboard/promotions', icon: Tag, label: 'Promociones' },
   { href: '/dashboard/menu', icon: UtensilsCrossed, label: 'Menú' },
   { href: '/dashboard/horarios', icon: Clock, label: 'Horarios' },
+  { href: '/dashboard/scanner', icon: QrCode, label: 'Escáner Circle' },
+  { href: '/dashboard/loyalty', icon: Gift, label: 'Loyalty & Premios' },
 ]
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {

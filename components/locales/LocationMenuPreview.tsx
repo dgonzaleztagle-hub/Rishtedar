@@ -8,8 +8,8 @@ import type { DietaryTag } from '@/types'
 
 // ─── signature dishes shown on every location page ──────────────────────────
 
-const SIGNATURE_IDS = ['item-013', 'item-012', 'item-003', 'item-051']
-// Chicken Tikka Masala, Lamb Rogan Josh, Paneer Tikka, Gulab Jamun
+const SIGNATURE_IDS = ['item-p01', 'item-e11', 'item-e12', 'item-v06']
+// Butter Chicken, Paneer Tikka, Samosas, Dal Makhani
 
 const TAG_CONFIG: Record<DietaryTag, { label: string; color: string; icon?: React.ReactNode }> = {
   'vegan':       { label: 'Vegano',       color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },

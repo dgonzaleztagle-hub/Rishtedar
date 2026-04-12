@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   MapPin, ShoppingBag, Tag, ChevronDown, CheckCircle2,
-  Leaf, Wheat, Flame, Plus, Minus, ArrowRight,
+  Leaf, Wheat, Flame, Plus, Minus, ArrowRight, Search, SlidersHorizontal,
 } from 'lucide-react'
 import Link from 'next/link'
 import { LOCATIONS } from '@/lib/locations'
@@ -29,18 +29,33 @@ const DIETARY_ICONS: Record<string, { icon: typeof Leaf; color: string }> = {
 // ─── category sidebar icons (emoji) ──────────────────────────────────────────
 
 const CAT_EMOJIS: Record<string, string> = {
-  'cat-entradas':    '🥗',
-  'cat-principales': '🍛',
-  'cat-tandoor':     '🔥',
-  'cat-biryani':     '🍚',
-  'cat-vegetariano': '🌿',
-  'cat-postres':     '🍮',
-  'cat-bebidas':     '☕',
+  'cat-entradas': '🥗',
+  'cat-veg':      '🌿',
+  'cat-pollo':    '🍛',
+  'cat-mar':      '🦐',
+  'cat-cordero':  '🥩',
+  'cat-tandoor':  '🔥',
+  'cat-305':      '🥪',
+  'cat-naan':     '🫓',
+  'cat-arroz':    '🍚',
+  'cat-postres':  '🍮',
+  'cat-kids':     '⭐',
+  'cat-bebidas':  '☕',
 }
+
+// ─── dietary filter config ────────────────────────────────────────────────────
+
+const DIETARY_FILTERS = [
+  { id: 'vegetarian',   label: '🌿 Vegetariano', activeClass: 'bg-emerald-700 text-white border-emerald-700' },
+  { id: 'vegan',        label: '🥬 Vegano',       activeClass: 'bg-emerald-800 text-white border-emerald-800' },
+  { id: 'gluten-free',  label: '🌾 Sin gluten',   activeClass: 'bg-amber-700 text-white border-amber-700' },
+  { id: 'spicy',        label: '🌶️ Picante',      activeClass: 'bg-red-700 text-white border-red-700' },
+  { id: 'halal',        label: '✓ Halal',          activeClass: 'bg-teal-700 text-white border-teal-700' },
+] as const
 
 // ─── main component ───────────────────────────────────────────────────────────
 
-export function OrderFlow({ initialLocal }: { initialLocal?: string }) {
+export function OrderFlow({ initialLocal, initialItem }: { initialLocal?: string; initialItem?: string }) {
   const activeLocations = LOCATIONS.filter(l => l.is_active)
   const validInitial = initialLocal && activeLocations.some(l => l.id === initialLocal) ? initialLocal : null
 
@@ -51,6 +66,9 @@ export function OrderFlow({ initialLocal }: { initialLocal?: string }) {
   const [cartOpen, setCartOpen]               = useState(false)
   const [activeCategory, setActiveCategory]   = useState<string | null>(null)
   const [selectedItem, setSelectedItem]       = useState<MenuItem | null>(null)
+  const [searchQuery, setSearchQuery]         = useState('')
+  const [showFilters, setShowFilters]         = useState(false)
+  const [activeDietary, setActiveDietary]     = useState<string[]>([])
 
   const { location: nearest, distance } = useNearestLocation()
   const cartItems  = useCartStore(s => s.items)
@@ -59,6 +77,7 @@ export function OrderFlow({ initialLocal }: { initialLocal?: string }) {
   const addItem    = useCartStore(s => s.addItem)
   const updateQty  = useCartStore(s => s.updateQty)
   const setBusinessId = useCartStore(s => s.setBusinessId)
+  const setPromotion  = useCartStore(s => s.setPromotion)
 
   useEffect(() => {
     if (nearest && !modalPickerId && !confirmedLocal) setModalPickerId(nearest.id)
@@ -68,16 +87,48 @@ export function OrderFlow({ initialLocal }: { initialLocal?: string }) {
   const activeLocalData = activeLocations.find(l => l.id === activeLocalId)
   const { promotion }   = useActivePromotion(activeLocalId)
 
+  useEffect(() => {
+    setPromotion(promotion ?? null)
+  }, [promotion, setPromotion])
+
+  // Open item detail on mount if initialItem provided
+  useEffect(() => {
+    if (initialItem) {
+      const item = DEMO_MENU_ITEMS.find(i => i.id === initialItem)
+      if (item) setSelectedItem(item)
+    }
+  }, [initialItem])
+
   function confirmLocal(id: string) {
     setConfirmedLocal(id)
     setBusinessId(id)
     setShowModal(false)
   }
 
-  // Group items by category for section headers
-  const categoriesToShow = activeCategory
+  function toggleDietary(id: string) {
+    setActiveDietary(prev =>
+      prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]
+    )
+  }
+
+  // Filter items by search + dietary
+  const itemsToShow = DEMO_MENU_ITEMS.filter(item => {
+    if (!item.is_active) return false
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      if (!item.name.toLowerCase().includes(q) && !(item.description ?? '').toLowerCase().includes(q)) return false
+    }
+    if (activeDietary.length > 0) {
+      if (!activeDietary.every(d => item.dietary_tags.includes(d as never))) return false
+    }
+    return true
+  })
+
+  // Group by category, filtered
+  const categoriesToShow = (activeCategory
     ? DEMO_CATEGORIES.filter(c => c.id === activeCategory)
     : DEMO_CATEGORIES
+  ).filter(cat => itemsToShow.some(i => i.category_id === cat.id))
 
   return (
     <>
@@ -172,97 +223,64 @@ export function OrderFlow({ initialLocal }: { initialLocal?: string }) {
         )}
       </AnimatePresence>
 
-      {/* ── 3-COLUMN LAYOUT ─────────────────────────────────────────── */}
-      <div className="flex min-h-screen bg-ivory">
+      {/* ── LAYOUT ──────────────────────────────────────────────────── */}
+      <div className="min-h-screen bg-ivory">
 
-        {/* ── LEFT: category sidebar (desktop only) ── */}
-        <aside className="hidden lg:flex flex-col w-56 shrink-0 bg-warm-950 border-r border-warm-800 sticky top-20 self-start h-[calc(100vh-5rem)] overflow-y-auto">
-          {/* Local chip */}
-          <div className="px-5 py-5 border-b border-warm-800">
-            {activeLocalData && (
-              <div>
-                <p className="text-warm-500 text-[10px] tracking-widest uppercase mb-1">Entregando desde</p>
-                <p className="text-ivory text-sm font-medium leading-tight">
-                  {activeLocalData.name.replace('Rishtedar ', '')}
-                </p>
-                <button
-                  onClick={() => { setModalPickerId(activeLocalId); setShowPicker(false); setShowModal(true) }}
-                  className="text-brand-400 text-[10px] tracking-wider uppercase mt-1 hover:text-brand-300 transition-colors"
-                >
-                  Cambiar →
-                </button>
-              </div>
-            )}
-          </div>
+        {/* ── STICKY TOP NAVBAR ── */}
+        <div className="sticky top-20 z-20 bg-white border-b border-warm-200 shadow-sm">
 
-          {/* Promo */}
-          {promotion && (
-            <div className="mx-4 mt-4 px-3 py-2.5 bg-brand-900/40 border border-brand-800">
-              <p className="text-brand-300 text-[10px] tracking-wider uppercase font-medium">
-                {promotion.discount_type === 'percent'
-                  ? `${promotion.discount_value}% OFF`
-                  : `${formatCLP(promotion.discount_value)} OFF`}
-              </p>
-              <p className="text-warm-400 text-[10px] mt-0.5 leading-tight">{promotion.title}</p>
-            </div>
-          )}
-
-          {/* Categories */}
-          <nav className="flex-1 py-4">
-            <p className="text-warm-600 text-[9px] tracking-[0.25em] uppercase px-5 mb-2">La carta</p>
-            <button
-              onClick={() => setActiveCategory(null)}
-              className={`w-full flex items-center gap-3 px-5 py-3 text-left text-xs tracking-wider uppercase font-medium transition-colors ${
-                !activeCategory
-                  ? 'text-ivory bg-warm-800 border-l-2 border-brand-500'
-                  : 'text-warm-500 hover:text-warm-300 hover:bg-warm-900/50'
-              }`}
-            >
-              <span className="text-base">🍽️</span>
-              Todo
-            </button>
-            {DEMO_CATEGORIES.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
-                className={`w-full flex items-center gap-3 px-5 py-3 text-left text-xs tracking-wider uppercase font-medium transition-colors ${
-                  activeCategory === cat.id
-                    ? 'text-ivory bg-warm-800 border-l-2 border-brand-500'
-                    : 'text-warm-500 hover:text-warm-300 hover:bg-warm-900/50'
-                }`}
-              >
-                <span className="text-base">{CAT_EMOJIS[cat.id] ?? '🍽️'}</span>
-                {cat.name}
-              </button>
-            ))}
-          </nav>
-        </aside>
-
-        {/* ── CENTER: menu ── */}
-        <div className="flex-1 min-w-0">
-
-          {/* Mobile top bar */}
-          <div className="lg:hidden border-b border-warm-200 bg-white px-4 py-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <MapPin size={13} className="text-brand-500 shrink-0" />
-              <span className="text-warm-700 text-sm truncate">
-                {activeLocalData?.name.replace('Rishtedar ', '') ?? 'Selecciona local'}
-              </span>
-            </div>
+          {/* Row 1: local chip + search + filter toggle */}
+          <div className="flex items-center gap-3 px-4 lg:px-8 py-2.5">
             <button
               onClick={() => { setModalPickerId(activeLocalId); setShowPicker(false); setShowModal(true) }}
-              className="shrink-0 text-[10px] tracking-wider uppercase border border-warm-200 text-warm-500 hover:border-brand-400 hover:text-brand-700 px-3 py-1.5 transition-colors"
+              className="shrink-0 flex items-center gap-1.5 text-xs text-warm-600 hover:text-brand-700 transition-colors"
             >
-              Cambiar
+              <MapPin size={12} className="text-brand-500" />
+              <span className="hidden sm:inline font-medium">
+                {activeLocalData?.name.replace('Rishtedar ', '') ?? 'Selecciona local'}
+              </span>
+              <span className="sm:hidden font-medium">
+                {activeLocalData?.name.replace('Rishtedar ', '') ?? 'Local'}
+              </span>
+              <span className="text-brand-400 text-[10px] tracking-wider uppercase">· cambiar</span>
+            </button>
+
+            <div className="w-px h-4 bg-warm-200 shrink-0" />
+
+            {/* Search input */}
+            <div className="flex-1 relative">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-400 pointer-events-none" />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Buscar platos..."
+                className="w-full pl-8 pr-3 py-1.5 text-sm bg-warm-50 border border-warm-200 focus:outline-none focus:border-brand-400 text-warm-800 placeholder:text-warm-400 transition-colors"
+              />
+            </div>
+
+            {/* Dietary filter toggle */}
+            <button
+              onClick={() => setShowFilters(v => !v)}
+              className={`shrink-0 flex items-center gap-1.5 text-[10px] tracking-wider uppercase border px-3 py-1.5 transition-all ${
+                showFilters || activeDietary.length > 0
+                  ? 'bg-brand-700 text-ivory border-brand-700'
+                  : 'border-warm-200 text-warm-500 hover:border-brand-400 hover:text-brand-600'
+              }`}
+            >
+              <SlidersHorizontal size={11} />
+              <span className="hidden sm:inline">
+                Filtros{activeDietary.length > 0 ? ` (${activeDietary.length})` : ''}
+              </span>
             </button>
           </div>
 
-          {/* Mobile category scroll */}
-          <div className="lg:hidden flex gap-2 overflow-x-auto px-4 py-3 bg-white border-b border-warm-100">
+          {/* Row 2: category pills */}
+          <div className="flex gap-2 overflow-x-auto px-4 lg:px-8 pb-2.5 scrollbar-none">
             <button
               onClick={() => setActiveCategory(null)}
-              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-[10px] tracking-wider uppercase font-medium border transition-all ${
-                !activeCategory ? 'bg-warm-900 text-ivory border-warm-900' : 'border-warm-200 text-warm-500'
+              className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 text-[10px] tracking-wider uppercase font-medium border transition-all ${
+                !activeCategory ? 'bg-warm-900 text-ivory border-warm-900' : 'border-warm-200 text-warm-600 hover:border-warm-400'
               }`}
             >
               🍽️ Todo
@@ -271,31 +289,73 @@ export function OrderFlow({ initialLocal }: { initialLocal?: string }) {
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
-                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-[10px] tracking-wider uppercase font-medium border transition-all ${
-                  activeCategory === cat.id ? 'bg-warm-900 text-ivory border-warm-900' : 'border-warm-200 text-warm-500'
+                className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 text-[10px] tracking-wider uppercase font-medium border transition-all ${
+                  activeCategory === cat.id ? 'bg-warm-900 text-ivory border-warm-900' : 'border-warm-200 text-warm-600 hover:border-warm-400'
                 }`}
               >
-                {CAT_EMOJIS[cat.id]} {cat.name}
+                {CAT_EMOJIS[cat.id] ?? '🍽️'} {cat.name}
               </button>
             ))}
           </div>
 
-          {/* Mobile promo banner */}
+          {/* Row 3: dietary filters (expandable) */}
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden border-t border-warm-100"
+              >
+                <div className="flex flex-wrap gap-2 px-4 lg:px-8 py-3">
+                  {DIETARY_FILTERS.map(f => (
+                    <button
+                      key={f.id}
+                      onClick={() => toggleDietary(f.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] tracking-wider uppercase border transition-all ${
+                        activeDietary.includes(f.id)
+                          ? f.activeClass
+                          : 'border-warm-200 text-warm-500 hover:border-warm-400'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                  {activeDietary.length > 0 && (
+                    <button
+                      onClick={() => setActiveDietary([])}
+                      className="flex items-center gap-1 px-3 py-1.5 text-[10px] tracking-wider uppercase text-warm-400 hover:text-warm-700 transition-colors"
+                    >
+                      Limpiar filtros ×
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Promo banner */}
           {promotion && (
-            <div className="lg:hidden flex items-center gap-2 bg-brand-50 border-b border-brand-100 px-4 py-2.5">
-              <Tag size={13} className="text-brand-600 shrink-0" />
+            <div className="flex items-center gap-2 bg-brand-50 border-t border-brand-100 px-4 lg:px-8 py-2">
+              <Tag size={12} className="text-brand-600 shrink-0" />
               <p className="text-brand-800 text-xs">
                 <span className="font-medium">
-                  {promotion.discount_type === 'percent' ? `${promotion.discount_value}% OFF` : `${formatCLP(promotion.discount_value)} OFF`}
+                  {promotion.discount_type === 'percent'
+                    ? `${promotion.discount_value}% OFF`
+                    : `${formatCLP(promotion.discount_value)} OFF`}
                 </span>
                 {' — '}{promotion.title}
               </p>
             </div>
           )}
+        </div>
 
-          {/* Menu sections */}
-          <div className="p-4 sm:p-6 lg:p-8 pb-28 lg:pb-10">
-            {/* Page title (desktop) */}
+        {/* ── CONTENT + RIGHT CART ── */}
+        <div className="flex">
+
+          {/* Center: menu sections */}
+          <div className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pb-28 lg:pb-10">
             <div className="hidden lg:block mb-8">
               <h1 className="font-display text-4xl italic text-warm-950">La carta</h1>
               <p className="text-warm-500 text-sm mt-1">
@@ -303,14 +363,26 @@ export function OrderFlow({ initialLocal }: { initialLocal?: string }) {
               </p>
             </div>
 
+            {categoriesToShow.length === 0 && (
+              <div className="text-center py-20">
+                <p className="text-4xl mb-3">🔍</p>
+                <p className="text-warm-500 text-sm">No se encontraron platos con esos filtros</p>
+                <button
+                  onClick={() => { setSearchQuery(''); setActiveDietary([]); setActiveCategory(null) }}
+                  className="mt-4 text-brand-600 text-xs hover:text-brand-800 transition-colors"
+                >
+                  Limpiar búsqueda
+                </button>
+              </div>
+            )}
+
             {categoriesToShow.map(cat => {
-              const items = DEMO_MENU_ITEMS.filter(i => i.is_active && i.category_id === cat.id)
+              const items = itemsToShow.filter(i => i.category_id === cat.id)
               if (!items.length) return null
               const catStyle = CATEGORY_STYLES[cat.id] ?? { emoji: '🍽️', gradient: '' }
 
               return (
                 <section key={cat.id} className="mb-10">
-                  {/* Section header */}
                   <div className="flex items-center gap-3 mb-5">
                     <span className="text-2xl">{catStyle.emoji}</span>
                     <h2 className="font-display text-2xl italic text-warm-900">{cat.name}</h2>
@@ -318,7 +390,6 @@ export function OrderFlow({ initialLocal }: { initialLocal?: string }) {
                     <span className="text-warm-400 text-xs">{items.length} platos</span>
                   </div>
 
-                  {/* Item grid — 2 cols on md+, 1 col on mobile */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                     {items.map(item => (
                       <MenuCard
@@ -333,90 +404,88 @@ export function OrderFlow({ initialLocal }: { initialLocal?: string }) {
               )
             })}
           </div>
-        </div>
 
-        {/* ── RIGHT: cart (desktop) ── */}
-        <aside className="hidden lg:block w-80 shrink-0 border-l border-warm-200 bg-white sticky top-20 self-start h-[calc(100vh-5rem)] overflow-y-auto">
-          <div className="p-6">
-            <h3 className="flex items-center gap-2 font-medium text-warm-900 mb-5 pb-4 border-b border-warm-100">
-              <ShoppingBag size={16} className="text-brand-700" />
-              Tu pedido
-              {itemCount > 0 && (
-                <span className="ml-auto bg-brand-700 text-ivory text-[10px] w-5 h-5 rounded-full flex items-center justify-center">
-                  {itemCount}
-                </span>
+          {/* Right: cart (desktop) */}
+          <aside className="hidden lg:block w-80 shrink-0 border-l border-warm-200 bg-white sticky top-[calc(5rem+var(--navbar-h,9rem))] self-start max-h-[calc(100vh-5rem)] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="flex items-center gap-2 font-medium text-warm-900 mb-5 pb-4 border-b border-warm-100">
+                <ShoppingBag size={16} className="text-brand-700" />
+                Tu pedido
+                {itemCount > 0 && (
+                  <span className="ml-auto bg-brand-700 text-ivory text-[10px] w-5 h-5 rounded-full flex items-center justify-center">
+                    {itemCount}
+                  </span>
+                )}
+              </h3>
+
+              {cartItems.length === 0 ? (
+                <div className="text-center py-10">
+                  <p className="text-4xl mb-3">🛒</p>
+                  <p className="text-warm-400 text-sm">Selecciona un plato para comenzar</p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-3 mb-5 max-h-[calc(100vh-24rem)] overflow-y-auto">
+                    {cartItems.map(ci => (
+                      <div key={ci.menu_item.id} className="flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-warm-800 text-sm font-medium leading-tight truncate">{ci.menu_item.name}</p>
+                          <p className="text-warm-400 text-xs mt-0.5">{formatCLP(ci.menu_item.price)} c/u</p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => updateQty(ci.menu_item.id, ci.quantity - 1)}
+                            className="w-6 h-6 border border-warm-200 flex items-center justify-center hover:border-brand-300 text-warm-500 hover:text-brand-700 transition-colors"
+                          >
+                            <Minus size={10} />
+                          </button>
+                          <span className="w-5 text-center text-xs font-medium text-warm-900">{ci.quantity}</span>
+                          <button
+                            onClick={() => addItem(ci.menu_item)}
+                            className="w-6 h-6 bg-brand-700 text-ivory flex items-center justify-center hover:bg-brand-800 transition-colors"
+                          >
+                            <Plus size={10} />
+                          </button>
+                        </div>
+                        <span className="text-warm-700 text-sm shrink-0 w-16 text-right">
+                          {formatCLP(ci.menu_item.price * ci.quantity)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="border-t border-warm-100 pt-4 space-y-2 mb-5">
+                    <div className="flex justify-between text-sm text-warm-500">
+                      <span>Subtotal</span>
+                      <span>{formatCLP(useCartStore.getState().subtotal())}</span>
+                    </div>
+                    {useCartStore.getState().discount() > 0 && (
+                      <div className="flex justify-between text-sm text-emerald-600">
+                        <span>Descuento</span>
+                        <span>−{formatCLP(useCartStore.getState().discount())}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-medium text-warm-900 pt-2 border-t border-warm-100">
+                      <span>Total</span>
+                      <span className="font-display text-xl text-gold-600">{formatCLP(total)}</span>
+                    </div>
+                  </div>
+
+                  <Link
+                    href="/order/checkout"
+                    className="flex items-center justify-center gap-2 w-full bg-brand-700 hover:bg-brand-800 text-ivory py-3.5 text-xs tracking-widest uppercase font-medium transition-colors"
+                  >
+                    Ir al checkout
+                    <ArrowRight size={13} />
+                  </Link>
+                  <p className="text-warm-400 text-[10px] text-center mt-2">
+                    Apple Pay · Google Pay · Tarjetas
+                  </p>
+                </>
               )}
-            </h3>
-
-            {cartItems.length === 0 ? (
-              <div className="text-center py-10">
-                <p className="text-4xl mb-3">🛒</p>
-                <p className="text-warm-400 text-sm">Selecciona un plato para comenzar</p>
-              </div>
-            ) : (
-              <>
-                <div className="space-y-3 mb-5 max-h-[calc(100vh-22rem)] overflow-y-auto">
-                  {cartItems.map(ci => (
-                    <div key={ci.menu_item.id} className="flex items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-warm-800 text-sm font-medium leading-tight truncate">{ci.menu_item.name}</p>
-                        <p className="text-warm-400 text-xs mt-0.5">{formatCLP(ci.menu_item.price)} c/u</p>
-                      </div>
-                      {/* Qty controls */}
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={() => updateQty(ci.menu_item.id, ci.quantity - 1)}
-                          className="w-6 h-6 border border-warm-200 flex items-center justify-center hover:border-brand-300 text-warm-500 hover:text-brand-700 transition-colors"
-                        >
-                          <Minus size={10} />
-                        </button>
-                        <span className="w-5 text-center text-xs font-medium text-warm-900">{ci.quantity}</span>
-                        <button
-                          onClick={() => addItem(ci.menu_item)}
-                          className="w-6 h-6 bg-brand-700 text-ivory flex items-center justify-center hover:bg-brand-800 transition-colors"
-                        >
-                          <Plus size={10} />
-                        </button>
-                      </div>
-                      <span className="text-warm-700 text-sm shrink-0 w-16 text-right">
-                        {formatCLP(ci.menu_item.price * ci.quantity)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Totals */}
-                <div className="border-t border-warm-100 pt-4 space-y-2 mb-5">
-                  <div className="flex justify-between text-sm text-warm-500">
-                    <span>Subtotal</span>
-                    <span>{formatCLP(useCartStore.getState().subtotal())}</span>
-                  </div>
-                  {useCartStore.getState().discount() > 0 && (
-                    <div className="flex justify-between text-sm text-emerald-600">
-                      <span>Descuento</span>
-                      <span>−{formatCLP(useCartStore.getState().discount())}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-medium text-warm-900 pt-2 border-t border-warm-100">
-                    <span>Total</span>
-                    <span className="font-display text-xl text-gold-600">{formatCLP(total)}</span>
-                  </div>
-                </div>
-
-                <Link
-                  href="/order/checkout"
-                  className="flex items-center justify-center gap-2 w-full bg-brand-700 hover:bg-brand-800 text-ivory py-3.5 text-xs tracking-widest uppercase font-medium transition-colors"
-                >
-                  Ir al checkout
-                  <ArrowRight size={13} />
-                </Link>
-                <p className="text-warm-400 text-[10px] text-center mt-2">
-                  Apple Pay · Google Pay · Tarjetas
-                </p>
-              </>
-            )}
-          </div>
-        </aside>
+            </div>
+          </aside>
+        </div>
       </div>
 
       {/* ── MOBILE FLOATING CART ── */}
