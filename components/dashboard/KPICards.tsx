@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { TrendingUp, ShoppingBag, CalendarCheck, Users } from 'lucide-react'
 import { formatCLP } from '@/lib/utils'
 

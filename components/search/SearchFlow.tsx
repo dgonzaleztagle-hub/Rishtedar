@@ -16,6 +16,7 @@ export function SearchFlow() {
   // Sync if URL param changes (e.g. back/forward nav)
   useEffect(() => {
     const q = searchParams.get('q')
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (q !== null) setQuery(q)
   }, [searchParams])
 

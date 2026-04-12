@@ -75,6 +75,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   const [day,        setDay]        = useState(0)
   const [service,    setService]    = useState(0)
   const [breakStats, setBreakStats] = useState({ score: 0, combo: 0, serves: 0 })
+  const [endStats,   setEndStats]   = useState({ lives: 0, maxCombo: 0, totalServes: 0 })
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   const playSound = useCallback((type: 'coin' | 'error') => {
@@ -135,7 +136,17 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
       x, order: randomDish(), patience: 1, hitFlash: 0, missFlash: 0, warnPulse: 0,
     })), [])
 
-  const setGsPhase = useCallback((p: Phase) => { gs.current.phase = p; setPhase(p) }, [])
+  const setGsPhase = useCallback((p: Phase) => {
+    gs.current.phase = p
+    setPhase(p)
+    if (p === 'game-over') {
+      setEndStats({
+        lives:       gs.current.lives,
+        maxCombo:    gs.current.maxCombo,
+        totalServes: gs.current.totalServes,
+      })
+    }
+  }, [])
 
   // ── Service lifecycle ──────────────────────────────────────────────────────
   const startService = useCallback((d: number, svc: number) => {
@@ -825,13 +836,13 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
           <motion.div key="gameover"
             initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 flex flex-col items-center justify-center bg-warm-950/93 px-6">
-            <p className="text-4xl mb-3">{gs.current.lives <= 0 ? '😵' : '🏆'}</p>
+            <p className="text-4xl mb-3">{endStats.lives <= 0 ? '😵' : '🏆'}</p>
             <h3 className="font-display text-3xl italic text-ivory mb-1">
-              {gs.current.lives <= 0 ? 'Se acabó el servicio' : '¡Restaurante completo!'}
+              {endStats.lives <= 0 ? 'Se acabó el servicio' : '¡Restaurante completo!'}
             </h3>
             <p className="text-gold-400 text-2xl font-medium mb-1">{score.toLocaleString('es-CL')} pts</p>
-            <p className="text-warm-500 text-xs mb-1">Combo máximo ×{gs.current.maxCombo}</p>
-            <p className="text-warm-600 text-xs mb-6">{gs.current.totalServes} platos servidos en total</p>
+            <p className="text-warm-500 text-xs mb-1">Combo máximo ×{endStats.maxCombo}</p>
+            <p className="text-warm-600 text-xs mb-6">{endStats.totalServes} platos servidos en total</p>
             <RankingButtons
               score={score}
               tokensLeft={tokensLeft}

@@ -1,25 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Truck, Clock, CheckCircle2, MapPin, Phone, User,
-  Navigation, Package, AlertCircle, ChevronDown, ChevronUp
+  Navigation, Package, AlertCircle, ChevronDown, ChevronUp,
+  Plus, Bike, Car, Footprints, MessageCircle, ToggleLeft, ToggleRight,
 } from 'lucide-react'
 import { formatCLP } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
+import type { Driver } from '@/types'
+
+// ─── Local types ──────────────────────────────────────────────────────────────
 
 type DeliveryStatus = 'assigned' | 'pickup' | 'on_route' | 'delivered' | 'issue'
-type DriverStatus = 'available' | 'on_route' | 'offline'
-
-interface Driver {
-  id: string
-  name: string
-  phone: string
-  vehicle: string
-  status: DriverStatus
-  current_order?: string
-  eta?: string
-  zone: string
-}
 
 interface DeliveryOrder {
   id: string
@@ -32,114 +27,244 @@ interface DeliveryOrder {
   total: number
   status: DeliveryStatus
   driver_id?: string
+  driver_name?: string
+  driver_phone?: string
+  driver_token?: string
   pickup_time?: string
   estimated_delivery?: string
   distance_km: number
   notes?: string
 }
 
-const DRIVERS: Driver[] = [
-  { id: 'd1', name: 'Rodrigo Muñoz', phone: '+56 9 8123 4567', vehicle: 'Moto · ABCD12', status: 'on_route', current_order: 'RSH-ABC123', eta: '8 min', zone: 'Providencia' },
-  { id: 'd2', name: 'Felipe Castro', phone: '+56 9 7234 5678', vehicle: 'Bici eléctrica', status: 'available', zone: 'Providencia / Ñuñoa' },
-  { id: 'd3', name: 'Carlos Vera', phone: '+56 9 6345 6789', vehicle: 'Moto · EFGH34', status: 'on_route', current_order: 'RSH-GHI789', eta: '15 min', zone: 'Vitacura' },
-  { id: 'd4', name: 'Andrés Silva', phone: '+56 9 5456 7890', vehicle: 'Moto · IJKL56', status: 'available', zone: 'Las Condes / Vitacura' },
-  { id: 'd5', name: 'Matías Torres', phone: '+56 9 4567 8901', vehicle: 'Bici eléctrica', status: 'offline', zone: 'La Dehesa' },
+// ─── Demo fallback ────────────────────────────────────────────────────────────
+
+const DEMO_DRIVERS: Driver[] = [
+  { id: 'd1', business_id: 'providencia', name: 'Rodrigo Muñoz', phone: '981234567', vehicle: 'moto', zone: 'Providencia', is_active: true, created_at: '' },
+  { id: 'd2', business_id: 'providencia', name: 'Felipe Castro', phone: '972345678', vehicle: 'bici', zone: 'Providencia / Ñuñoa', is_active: true, created_at: '' },
+  { id: 'd3', business_id: 'providencia', name: 'Andrés Silva', phone: '963456789', vehicle: 'moto', zone: 'Las Condes / Vitacura', is_active: true, created_at: '' },
+  { id: 'd4', business_id: 'providencia', name: 'Matías Torres', phone: '954567890', vehicle: 'bici', zone: 'La Dehesa', is_active: false, created_at: '' },
 ]
 
-const ORDERS: DeliveryOrder[] = [
+const DEMO_ORDERS: DeliveryOrder[] = [
   {
     id: 'ord-001', order_number: 'RSH-ABC123',
     customer_name: 'María González', customer_phone: '+56 9 8765 4321',
     address: 'Av. Providencia 1234, Depto 52', neighborhood: 'Providencia',
     items: ['Chicken Tikka Masala', 'Garlic Naan x2'],
-    total: 27800, status: 'on_route', driver_id: 'd1',
-    pickup_time: '19:42', estimated_delivery: '20:05',
-    distance_km: 2.3,
+    total: 27800, status: 'on_route', driver_id: 'd1', driver_name: 'Rodrigo Muñoz', driver_phone: '981234567',
+    pickup_time: '19:42', estimated_delivery: '20:05', distance_km: 2.3,
   },
   {
-    id: 'ord-003', order_number: 'RSH-GHI789',
-    customer_name: 'Ana Martínez', customer_phone: '+56 9 6543 2109',
-    address: 'Los Leones 890, Piso 3', neighborhood: 'Providencia',
-    items: ['Biryani Pollo'],
-    total: 15900, status: 'pickup', driver_id: 'd3',
-    pickup_time: '19:55', estimated_delivery: '20:20',
-    distance_km: 3.1,
-  },
-  {
-    id: 'ord-new1', order_number: 'RSH-VWX234',
-    customer_name: 'Diego Morales', customer_phone: '+56 9 3210 9876',
-    address: 'Alonso de Córdova 4000, Depto 82', neighborhood: 'Vitacura',
-    items: ['Butter Chicken', 'Palak Paneer', 'Mango Lassi'],
-    total: 35400, status: 'assigned', driver_id: 'd4',
-    estimated_delivery: '20:35',
-    distance_km: 4.2,
-    notes: 'Timbre 82, dejar con conserje',
-  },
-  {
-    id: 'ord-new2', order_number: 'RSH-YZA567',
+    id: 'ord-002', order_number: 'RSH-YZA567',
     customer_name: 'Sofía Herrera', customer_phone: '+56 9 4321 0987',
     address: 'Ricardo Lyon 222, Dpto 12', neighborhood: 'Providencia',
     items: ['Lamb Rogan Josh', 'Dal Makhani'],
     total: 33900, status: 'assigned',
-    estimated_delivery: '20:40',
-    distance_km: 1.8,
-  },
-  {
-    id: 'ord-done1', order_number: 'RSH-BCD890',
-    customer_name: 'Roberto Pérez', customer_phone: '+56 9 5432 1098',
-    address: 'El Bosque Norte 500', neighborhood: 'Las Condes',
-    items: ['Tandoori Mixed Grill', 'Gulab Jamun x2'],
-    total: 46700, status: 'delivered',
-    pickup_time: '18:30', estimated_delivery: '19:00',
-    distance_km: 3.8,
+    estimated_delivery: '20:40', distance_km: 1.8,
   },
 ]
 
+// ─── Configs ──────────────────────────────────────────────────────────────────
+
 const STATUS_CONFIG: Record<DeliveryStatus, { label: string; icon: typeof Clock; color: string; bg: string; step: number }> = {
-  assigned: { label: 'Asignado', icon: User, color: 'text-amber-700', bg: 'bg-amber-50', step: 1 },
-  pickup: { label: 'Recogiendo', icon: Package, color: 'text-blue-700', bg: 'bg-blue-50', step: 2 },
-  on_route: { label: 'En camino', icon: Navigation, color: 'text-purple-700', bg: 'bg-purple-50', step: 3 },
-  delivered: { label: 'Entregado', icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50', step: 4 },
-  issue: { label: 'Problema', icon: AlertCircle, color: 'text-red-700', bg: 'bg-red-50', step: 0 },
+  assigned: { label: 'Asignado',   icon: User,         color: 'text-amber-700',   bg: 'bg-amber-50',   step: 1 },
+  pickup:   { label: 'Recogiendo', icon: Package,      color: 'text-blue-700',    bg: 'bg-blue-50',    step: 2 },
+  on_route: { label: 'En camino',  icon: Navigation,   color: 'text-purple-700',  bg: 'bg-purple-50',  step: 3 },
+  delivered:{ label: 'Entregado',  icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50', step: 4 },
+  issue:    { label: 'Problema',   icon: AlertCircle,  color: 'text-red-700',     bg: 'bg-red-50',     step: 0 },
 }
 
-const DRIVER_STATUS: Record<DriverStatus, { label: string; color: string; dot: string }> = {
-  available: { label: 'Disponible', color: 'text-emerald-700', dot: 'bg-emerald-500' },
-  on_route: { label: 'En ruta', color: 'text-blue-700', dot: 'bg-blue-500' },
-  offline: { label: 'Offline', color: 'text-warm-400', dot: 'bg-warm-400' },
+const VEHICLE_ICON: Record<Driver['vehicle'], typeof Truck> = {
+  moto:   Truck,
+  bici:   Bike,
+  auto:   Car,
+  a_pie:  Footprints,
+}
+
+const VEHICLE_LABEL: Record<Driver['vehicle'], string> = {
+  moto:  'Moto',
+  bici:  'Bicicleta',
+  auto:  'Auto',
+  a_pie: 'A pie',
 }
 
 const STEPS = ['Asignado', 'Recogiendo', 'En camino', 'Entregado']
 
-export function DeliveryView() {
-  const [orders, setOrders] = useState(ORDERS)
-  const [expanded, setExpanded] = useState<string | null>('ord-001')
-  const [assignModal, setAssignModal] = useState<string | null>(null)
+type DriverForm = { name: string; phone: string; vehicle: Driver['vehicle']; zone: string }
+const EMPTY_FORM: DriverForm = { name: '', phone: '', vehicle: 'moto', zone: '' }
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export function DeliveryView() {
+  const [orders, setOrders]           = useState<DeliveryOrder[]>(DEMO_ORDERS)
+  const [drivers, setDrivers]         = useState<Driver[]>(DEMO_DRIVERS)
+  const [expanded, setExpanded]       = useState<string | null>(DEMO_ORDERS[0]?.id ?? null)
+  const [assignModal, setAssignModal] = useState<string | null>(null)
+  const [assigningId, setAssigningId] = useState<string | null>(null)
+  const [waResult, setWaResult]       = useState<{ waUrl: string; driverName: string } | null>(null)
+  const [showDriverForm, setShowDriverForm] = useState(false)
+  const [driverForm, setDriverForm]   = useState<DriverForm>(EMPTY_FORM)
+  const [savingDriver, setSavingDriver] = useState(false)
+
+  const hasDB = !!(process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith('http'))
+
+  // ── Fetch drivers from DB ──────────────────────────────────────────────────
+  const fetchDrivers = useCallback(async () => {
+    if (!hasDB) return
+    const branch = JSON.parse(localStorage.getItem('rishtedar_branch') || '{}')
+    const businessId = branch?.id || 'providencia'
+    try {
+      const res = await fetch(`/api/drivers?business_id=${businessId}`)
+      if (res.ok) {
+        const json = await res.json()
+        if (json.drivers?.length) setDrivers(json.drivers)
+      }
+    } catch { /* silencioso */ }
+  }, [hasDB])
+
+  // ── Realtime: escuchar cambios en delivery_tracking ───────────────────────
+  useEffect(() => {
+    fetchDrivers()
+    if (!hasDB) return
+    const supabase = createClient()
+    const channel = supabase
+      .channel('delivery_tracking_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'delivery_tracking' },
+        (payload) => {
+          const updated = payload.new as { order_id: string; status: string; driver_name?: string; driver_id?: string; driver_token?: string }
+          if (!updated?.order_id) return
+          const statusMap: Record<string, DeliveryStatus> = {
+            assigned:   'assigned',
+            pickup:     'pickup',
+            in_transit: 'on_route',
+            delivered:  'delivered',
+          }
+          setOrders(prev => prev.map(o =>
+            o.id === updated.order_id
+              ? {
+                  ...o,
+                  status:       statusMap[updated.status] ?? o.status,
+                  driver_name:  updated.driver_name ?? o.driver_name,
+                  driver_id:    updated.driver_id ?? o.driver_id,
+                  driver_token: updated.driver_token ?? o.driver_token,
+                }
+              : o
+          ))
+        }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [fetchDrivers, hasDB])
+
+  // ── Assign driver ──────────────────────────────────────────────────────────
+  async function handleAssign(orderId: string, driver: Driver) {
+    setAssigningId(driver.id)
+    try {
+      const res = await fetch('/api/delivery/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId, driver_id: driver.id, business_id: driver.business_id }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+
+      // Actualizar estado local
+      setOrders(prev => prev.map(o =>
+        o.id === orderId
+          ? { ...o, driver_id: driver.id, driver_name: driver.name, driver_phone: driver.phone, driver_token: json.token, status: 'assigned' }
+          : o
+      ))
+      setWaResult({ waUrl: json.waUrl, driverName: driver.name })
+    } catch (err) {
+      // Demo fallback: asignar localmente sin DB
+      setOrders(prev => prev.map(o =>
+        o.id === orderId
+          ? { ...o, driver_id: driver.id, driver_name: driver.name, driver_phone: driver.phone, status: 'assigned' }
+          : o
+      ))
+      const waPhone = `56${driver.phone.replace(/\s+/g, '')}`
+      const driverUrl = `https://rishtedar.cl/driver/demo-token`
+      const msg = encodeURIComponent(`Hola ${driver.name}, tienes un nuevo delivery en Rishtedar.\n${driverUrl}`)
+      setWaResult({ waUrl: `https://wa.me/${waPhone}?text=${msg}`, driverName: driver.name })
+      console.warn('[assign] DB error — demo mode', err)
+    } finally {
+      setAssigningId(null)
+      setAssignModal(null)
+    }
+  }
+
+  // ── Advance status (desde el dashboard, override) ─────────────────────────
   function advanceStatus(orderId: string) {
     const next: Record<DeliveryStatus, DeliveryStatus> = {
-      assigned: 'pickup',
-      pickup: 'on_route',
-      on_route: 'delivered',
-      delivered: 'delivered',
-      issue: 'assigned',
+      assigned: 'pickup', pickup: 'on_route', on_route: 'delivered',
+      delivered: 'delivered', issue: 'assigned',
     }
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: next[o.status] } : o))
   }
 
-  function assignDriver(orderId: string, driverId: string) {
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, driver_id: driverId, status: 'assigned' } : o))
-    setAssignModal(null)
+  // ── Save new driver ────────────────────────────────────────────────────────
+  async function handleSaveDriver(e: React.FormEvent) {
+    e.preventDefault()
+    if (!driverForm.name || !driverForm.phone) {
+      toast.error('Nombre y teléfono son obligatorios')
+      return
+    }
+    setSavingDriver(true)
+    const branch = JSON.parse(localStorage.getItem('rishtedar_branch') || '{}')
+    const businessId = branch?.id || 'providencia'
+
+    try {
+      const res = await fetch('/api/drivers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...driverForm, business_id: businessId }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      setDrivers(prev => [json.driver, ...prev])
+      toast.success(`${json.driver.name} registrado como driver`)
+    } catch {
+      // Demo fallback
+      const newDriver: Driver = {
+        id: `demo-${Date.now()}`, business_id: businessId,
+        name: driverForm.name, phone: driverForm.phone,
+        vehicle: driverForm.vehicle, zone: driverForm.zone || null,
+        is_active: true, created_at: new Date().toISOString(),
+      }
+      setDrivers(prev => [newDriver, ...prev])
+      toast.success(`${newDriver.name} registrado (modo demo)`)
+    } finally {
+      setSavingDriver(false)
+      setDriverForm(EMPTY_FORM)
+      setShowDriverForm(false)
+    }
   }
 
-  const active = orders.filter(o => o.status !== 'delivered')
-  const delivered = orders.filter(o => o.status === 'delivered')
-  const unassigned = orders.filter(o => !o.driver_id && o.status === 'assigned')
-  const availableDrivers = DRIVERS.filter(d => d.status === 'available')
+  // ── Toggle driver active ───────────────────────────────────────────────────
+  async function toggleDriver(driver: Driver) {
+    const newVal = !driver.is_active
+    setDrivers(prev => prev.map(d => d.id === driver.id ? { ...d, is_active: newVal } : d))
+    try {
+      await fetch(`/api/drivers?id=${driver.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: newVal }),
+      })
+    } catch { /* silencioso */ }
+  }
+
+  const active      = orders.filter(o => o.status !== 'delivered')
+  const delivered   = orders.filter(o => o.status === 'delivered')
+  const unassigned  = orders.filter(o => !o.driver_id && o.status === 'assigned')
+  const activeDrivers = drivers.filter(d => d.is_active)
 
   return (
     <div className="space-y-5">
-      {/* Header */}
+
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-warm-900">Delivery</h1>
@@ -157,22 +282,19 @@ export function DeliveryView() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        {/* Orders column */}
+
+        {/* ── Orders column ──────────────────────────────────────────────── */}
         <div className="xl:col-span-2 space-y-3">
 
-          {/* Active orders */}
           {active.map(order => {
             const cfg = STATUS_CONFIG[order.status]
             const Icon = cfg.icon
-            const driver = DRIVERS.find(d => d.id === order.driver_id)
+            const driver = drivers.find(d => d.id === order.driver_id)
             const isExpanded = expanded === order.id
-            const canAdvance = order.status !== 'delivered' && order.driver_id
+            const canAdvance = order.status !== 'delivered' && !!order.driver_id
             const nextLabel: Record<DeliveryStatus, string> = {
-              assigned: '→ Recogiendo',
-              pickup: '→ En camino',
-              on_route: '→ Entregado',
-              delivered: '',
-              issue: '',
+              assigned: '→ Recogiendo', pickup: '→ En camino', on_route: '→ Entregado',
+              delivered: '', issue: '',
             }
 
             return (
@@ -182,8 +304,8 @@ export function DeliveryView() {
                   <div
                     className={`h-full transition-all duration-500 ${
                       order.status === 'delivered' ? 'bg-emerald-500' :
-                      order.status === 'on_route' ? 'bg-purple-500' :
-                      order.status === 'pickup' ? 'bg-blue-500' : 'bg-amber-400'
+                      order.status === 'on_route'  ? 'bg-purple-500' :
+                      order.status === 'pickup'    ? 'bg-blue-500'   : 'bg-amber-400'
                     }`}
                     style={{ width: `${(cfg.step / 4) * 100}%` }}
                   />
@@ -194,13 +316,10 @@ export function DeliveryView() {
                   className="flex items-center gap-3 px-5 py-4 cursor-pointer hover:bg-warm-50 transition-colors"
                   onClick={() => setExpanded(isExpanded ? null : order.id)}
                 >
-                  {/* Status */}
                   <div className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 ${cfg.bg} ${cfg.color} text-xs font-medium w-28`}>
                     <Icon size={11} />
                     {cfg.label}
                   </div>
-
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-warm-900 text-sm">{order.customer_name}</span>
@@ -211,26 +330,21 @@ export function DeliveryView() {
                       {order.address}
                     </p>
                   </div>
-
-                  {/* ETA */}
                   <div className="shrink-0 text-right hidden sm:block">
-                    {driver?.eta && order.status === 'on_route' ? (
-                      <>
-                        <p className="text-purple-700 font-medium text-sm">{driver.eta}</p>
-                        <p className="text-warm-400 text-xs">ETA</p>
-                      </>
-                    ) : order.estimated_delivery ? (
+                    {order.estimated_delivery && (
                       <>
                         <p className="text-warm-700 font-medium text-sm">{order.estimated_delivery}</p>
                         <p className="text-warm-400 text-xs">estimado</p>
                       </>
-                    ) : null}
+                    )}
                   </div>
-
-                  {isExpanded ? <ChevronUp size={14} className="text-warm-400 shrink-0" /> : <ChevronDown size={14} className="text-warm-400 shrink-0" />}
+                  {isExpanded
+                    ? <ChevronUp size={14} className="text-warm-400 shrink-0" />
+                    : <ChevronDown size={14} className="text-warm-400 shrink-0" />
+                  }
                 </div>
 
-                {/* Expanded */}
+                {/* Expanded detail */}
                 {isExpanded && (
                   <div className="border-t border-warm-100 px-5 py-4 bg-warm-50 space-y-4">
                     {/* Steps */}
@@ -245,9 +359,9 @@ export function DeliveryView() {
                                 <div className={`absolute left-0 right-1/2 top-2.5 h-0.5 -translate-y-1/2 ${done || current ? 'bg-brand-700' : 'bg-warm-200'}`} />
                               )}
                               <div className={`w-5 h-5 rounded-full flex items-center justify-center z-10 text-[9px] font-bold ${
-                                done ? 'bg-brand-700 text-ivory' :
+                                done    ? 'bg-brand-700 text-ivory' :
                                 current ? 'bg-brand-700 text-ivory ring-2 ring-brand-200' :
-                                'bg-warm-200 text-warm-500'
+                                          'bg-warm-200 text-warm-500'
                               }`}>
                                 {done ? '✓' : i + 1}
                               </div>
@@ -264,7 +378,7 @@ export function DeliveryView() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
                       <div>
                         <p className="text-warm-400 uppercase tracking-wider text-[10px] mb-1">Platos</p>
-                        {order.items.map(i => <p key={i} className="text-warm-700">· {i}</p>)}
+                        {order.items.map(item => <p key={item} className="text-warm-700">· {item}</p>)}
                       </div>
                       <div>
                         <p className="text-warm-400 uppercase tracking-wider text-[10px] mb-1">Destino</p>
@@ -287,9 +401,9 @@ export function DeliveryView() {
                           </div>
                           <div>
                             <p className="text-warm-800 text-xs font-medium">{driver.name}</p>
-                            <p className="text-warm-400 text-[10px]">{driver.vehicle}</p>
+                            <p className="text-warm-400 text-[10px]">{VEHICLE_LABEL[driver.vehicle]}{driver.zone ? ` · ${driver.zone}` : ''}</p>
                           </div>
-                          <a href={`tel:${driver.phone}`} className="ml-2 p-1.5 text-warm-400 hover:text-warm-700 hover:bg-warm-50 transition-colors">
+                          <a href={`tel:${driver.phone}`} className="ml-2 p-1.5 text-warm-400 hover:text-warm-700 transition-colors">
                             <Phone size={12} />
                           </a>
                         </div>
@@ -349,114 +463,120 @@ export function DeliveryView() {
           )}
         </div>
 
-        {/* Drivers column */}
+        {/* ── Drivers column ─────────────────────────────────────────────── */}
         <div className="space-y-4">
-          {/* Mock map */}
-          <div className="bg-white border border-warm-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-warm-100 flex items-center gap-2">
-              <MapPin size={13} className="text-brand-700" />
-              <p className="text-xs font-medium text-warm-700">Mapa de repartos</p>
-            </div>
-            <div
-              className="relative h-52 overflow-hidden"
-              style={{
-                background: 'linear-gradient(135deg, #e8f0e4 0%, #d4e0d0 25%, #c8d8c4 50%, #d0dccc 75%, #e0e8dc 100%)',
-              }}
-            >
-              {/* Street grid overlay */}
-              <svg className="absolute inset-0 w-full h-full opacity-30" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#4a7a4a" strokeWidth="0.5"/>
-                  </pattern>
-                  <pattern id="blocks" width="120" height="80" patternUnits="userSpaceOnUse">
-                    <rect width="120" height="80" fill="none" stroke="#3a6a3a" strokeWidth="1"/>
-                  </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#grid)" />
-                <rect width="100%" height="100%" fill="url(#blocks)" opacity="0.5" />
-                {/* Main roads */}
-                <line x1="0" y1="40" x2="300" y2="40" stroke="#b8c8b0" strokeWidth="3" />
-                <line x1="0" y1="100" x2="300" y2="100" stroke="#b8c8b0" strokeWidth="4" />
-                <line x1="0" y1="160" x2="300" y2="160" stroke="#b8c8b0" strokeWidth="3" />
-                <line x1="80" y1="0" x2="80" y2="210" stroke="#b8c8b0" strokeWidth="3" />
-                <line x1="160" y1="0" x2="160" y2="210" stroke="#b8c8b0" strokeWidth="4" />
-                <line x1="240" y1="0" x2="240" y2="210" stroke="#b8c8b0" strokeWidth="3" />
-              </svg>
 
-              {/* Restaurant pin */}
-              <div className="absolute" style={{ top: '38%', left: '42%' }}>
-                <div className="w-6 h-6 bg-brand-800 border-2 border-white rounded-full flex items-center justify-center shadow-lg">
-                  <UtensilsCrossed size={10} className="text-ivory" />
-                </div>
-                <div className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] bg-warm-900 text-ivory px-1 py-0.5 rounded">
-                  Providencia
-                </div>
-              </div>
-
-              {/* Driver 1 - on route */}
-              <div className="absolute animate-pulse" style={{ top: '22%', left: '65%' }}>
-                <div className="w-5 h-5 bg-purple-600 border-2 border-white rounded-full flex items-center justify-center shadow">
-                  <Truck size={9} className="text-white" />
-                </div>
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-[8px] bg-purple-700 text-white px-1 py-0.5 rounded whitespace-nowrap">
-                  Rodrigo · 8 min
-                </div>
-              </div>
-
-              {/* Driver 2 - pickup */}
-              <div className="absolute" style={{ top: '52%', left: '55%' }}>
-                <div className="w-5 h-5 bg-blue-600 border-2 border-white rounded-full flex items-center justify-center shadow">
-                  <Truck size={9} className="text-white" />
-                </div>
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-[8px] bg-blue-700 text-white px-1 py-0.5 rounded whitespace-nowrap">
-                  Carlos
-                </div>
-              </div>
-
-              {/* Delivery destination pin */}
-              <div className="absolute" style={{ top: '15%', left: '72%' }}>
-                <div className="w-4 h-4 bg-emerald-500 border-2 border-white rounded-full shadow" />
-              </div>
-
-              {/* Map attribution */}
-              <div className="absolute bottom-2 right-2 text-[8px] text-warm-500/70 bg-white/60 px-1 rounded">
-                Mapa demo · Google Maps en producción
-              </div>
-            </div>
-          </div>
-
-          {/* Drivers list */}
+          {/* Drivers list + enrollment */}
           <div className="bg-white border border-warm-200">
             <div className="px-4 py-3 border-b border-warm-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <User size={13} className="text-brand-700" />
                 <p className="text-xs font-medium text-warm-700">Repartidores</p>
               </div>
-              <span className="text-[10px] text-emerald-600 font-medium">
-                {availableDrivers.length} disponibles
-              </span>
+              <button
+                onClick={() => setShowDriverForm(v => !v)}
+                className="flex items-center gap-1 text-brand-700 hover:text-brand-900 text-xs font-medium transition-colors"
+              >
+                <Plus size={12} />
+                Registrar
+              </button>
             </div>
+
+            {/* Driver enrollment form */}
+            <AnimatePresence>
+              {showDriverForm && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden border-b border-warm-100"
+                >
+                  <form onSubmit={handleSaveDriver} className="px-4 py-4 space-y-3 bg-warm-50">
+                    <p className="text-xs font-medium text-warm-700 mb-2">Nuevo repartidor</p>
+                    <input
+                      type="text" placeholder="Nombre completo *"
+                      value={driverForm.name}
+                      onChange={e => setDriverForm(v => ({ ...v, name: e.target.value }))}
+                      required
+                      className="w-full px-3 py-2 border border-warm-200 text-sm focus:outline-none focus:border-brand-400 bg-white"
+                    />
+                    <input
+                      type="tel" placeholder="Teléfono (sin +56, ej: 912345678) *"
+                      value={driverForm.phone}
+                      onChange={e => setDriverForm(v => ({ ...v, phone: e.target.value }))}
+                      required
+                      className="w-full px-3 py-2 border border-warm-200 text-sm focus:outline-none focus:border-brand-400 bg-white"
+                    />
+                    <select
+                      value={driverForm.vehicle}
+                      onChange={e => setDriverForm(v => ({ ...v, vehicle: e.target.value as Driver['vehicle'] }))}
+                      className="w-full px-3 py-2 border border-warm-200 text-sm focus:outline-none focus:border-brand-400 bg-white"
+                    >
+                      <option value="moto">Moto</option>
+                      <option value="bici">Bicicleta</option>
+                      <option value="auto">Auto</option>
+                      <option value="a_pie">A pie</option>
+                    </select>
+                    <input
+                      type="text" placeholder="Zona (opcional, ej: Providencia Norte)"
+                      value={driverForm.zone}
+                      onChange={e => setDriverForm(v => ({ ...v, zone: e.target.value }))}
+                      className="w-full px-3 py-2 border border-warm-200 text-sm focus:outline-none focus:border-brand-400 bg-white"
+                    />
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => { setShowDriverForm(false); setDriverForm(EMPTY_FORM) }}
+                        className="flex-1 border border-warm-300 text-warm-600 py-2 text-xs uppercase tracking-wider hover:border-warm-400 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={savingDriver}
+                        className="flex-1 bg-brand-700 hover:bg-brand-800 disabled:opacity-60 text-ivory py-2 text-xs uppercase tracking-wider transition-colors"
+                      >
+                        {savingDriver ? 'Guardando...' : 'Registrar'}
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Drivers list */}
             <div className="divide-y divide-warm-50">
-              {DRIVERS.map(driver => {
-                const dst = DRIVER_STATUS[driver.status]
-                const activeOrder = ORDERS.find(o => o.driver_id === driver.id && o.status !== 'delivered')
+              {drivers.length === 0 && (
+                <p className="px-4 py-6 text-center text-warm-400 text-xs">
+                  No hay repartidores. Registra el primero.
+                </p>
+              )}
+              {drivers.map(driver => {
+                const VehicleIcon = VEHICLE_ICON[driver.vehicle]
                 return (
-                  <div key={driver.id} className={`flex items-center gap-3 px-4 py-3 ${driver.status === 'offline' ? 'opacity-40' : ''}`}>
-                    <div className="relative">
-                      <div className="w-8 h-8 bg-warm-100 flex items-center justify-center">
-                        <User size={14} className="text-warm-600" />
-                      </div>
-                      <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white ${dst.dot}`} />
+                  <div
+                    key={driver.id}
+                    className={`flex items-center gap-3 px-4 py-3 transition-opacity ${!driver.is_active ? 'opacity-40' : ''}`}
+                  >
+                    <div className="w-8 h-8 bg-warm-100 flex items-center justify-center shrink-0">
+                      <VehicleIcon size={14} className="text-warm-600" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-warm-800 text-xs font-medium truncate">{driver.name}</p>
-                      <p className="text-warm-400 text-[10px] truncate">{driver.vehicle}</p>
-                      {activeOrder && (
-                        <p className="text-[10px] text-blue-600 truncate">{activeOrder.order_number} · {driver.eta}</p>
-                      )}
+                      <p className="text-warm-400 text-[10px] truncate">
+                        {VEHICLE_LABEL[driver.vehicle]}{driver.zone ? ` · ${driver.zone}` : ''}
+                      </p>
                     </div>
-                    <span className={`shrink-0 text-[10px] font-medium ${dst.color}`}>{dst.label}</span>
+                    <button
+                      onClick={() => toggleDriver(driver)}
+                      className="shrink-0 text-warm-400 hover:text-warm-700 transition-colors"
+                      title={driver.is_active ? 'Desactivar' : 'Activar'}
+                    >
+                      {driver.is_active
+                        ? <ToggleRight size={18} className="text-emerald-500" />
+                        : <ToggleLeft  size={18} className="text-warm-300" />
+                      }
+                    </button>
                   </div>
                 )
               })}
@@ -466,10 +586,10 @@ export function DeliveryView() {
           {/* KPIs */}
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: 'Tiempo promedio', value: '28 min', sub: 'por entrega' },
-              { label: 'En ruta ahora', value: '2', sub: 'repartidores' },
-              { label: 'Entregados hoy', value: String(delivered.length), sub: 'pedidos' },
-              { label: 'Sin asignar', value: String(unassigned.length), sub: 'pedidos', alert: unassigned.length > 0 },
+              { label: 'Tiempo promedio',  value: '28 min',           sub: 'por entrega' },
+              { label: 'Activos ahora',    value: String(activeDrivers.length), sub: 'repartidores' },
+              { label: 'Entregados hoy',   value: String(delivered.length), sub: 'pedidos' },
+              { label: 'Sin asignar',      value: String(unassigned.length), sub: 'pedidos', alert: unassigned.length > 0 },
             ].map(kpi => (
               <div key={kpi.label} className={`bg-white border p-4 ${kpi.alert ? 'border-amber-300 bg-amber-50' : 'border-warm-200'}`}>
                 <p className={`text-2xl font-semibold ${kpi.alert ? 'text-amber-700' : 'text-warm-900'}`}>{kpi.value}</p>
@@ -480,7 +600,7 @@ export function DeliveryView() {
         </div>
       </div>
 
-      {/* Assign driver modal */}
+      {/* ── Assign driver modal ───────────────────────────────────────────── */}
       {assignModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="bg-white w-full max-w-sm shadow-xl">
@@ -488,40 +608,71 @@ export function DeliveryView() {
               <p className="font-medium text-warm-900">Asignar repartidor</p>
               <button onClick={() => setAssignModal(null)} className="text-warm-400 hover:text-warm-700">✕</button>
             </div>
-            <div className="divide-y divide-warm-100">
-              {DRIVERS.filter(d => d.status === 'available').map(driver => (
-                <button
-                  key={driver.id}
-                  onClick={() => assignDriver(assignModal, driver.id)}
-                  className="w-full flex items-center gap-3 px-5 py-4 hover:bg-warm-50 transition-colors text-left"
-                >
-                  <div className="w-9 h-9 bg-warm-100 flex items-center justify-center">
-                    <User size={16} className="text-warm-600" />
-                  </div>
-                  <div>
-                    <p className="text-warm-800 text-sm font-medium">{driver.name}</p>
-                    <p className="text-warm-400 text-xs">{driver.vehicle} · {driver.zone}</p>
-                  </div>
-                  <span className="ml-auto text-emerald-600 text-xs font-medium">Disponible</span>
-                </button>
-              ))}
-              {DRIVERS.filter(d => d.status === 'available').length === 0 && (
+            <div className="divide-y divide-warm-100 max-h-72 overflow-y-auto">
+              {activeDrivers.map(driver => {
+                const VehicleIcon = VEHICLE_ICON[driver.vehicle]
+                const isAssigning = assigningId === driver.id
+                return (
+                  <button
+                    key={driver.id}
+                    onClick={() => handleAssign(assignModal, driver)}
+                    disabled={!!assigningId}
+                    className="w-full flex items-center gap-3 px-5 py-4 hover:bg-warm-50 transition-colors text-left disabled:opacity-60"
+                  >
+                    <div className="w-9 h-9 bg-warm-100 flex items-center justify-center shrink-0">
+                      <VehicleIcon size={16} className="text-warm-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-warm-800 text-sm font-medium">{driver.name}</p>
+                      <p className="text-warm-400 text-xs">{VEHICLE_LABEL[driver.vehicle]}{driver.zone ? ` · ${driver.zone}` : ''}</p>
+                    </div>
+                    {isAssigning
+                      ? <span className="text-brand-600 text-xs">Asignando…</span>
+                      : <span className="text-emerald-600 text-xs font-medium">Disponible</span>
+                    }
+                  </button>
+                )
+              })}
+              {activeDrivers.length === 0 && (
                 <div className="px-5 py-8 text-center text-warm-400 text-sm">
-                  No hay repartidores disponibles
+                  No hay repartidores activos
                 </div>
               )}
             </div>
           </div>
         </div>
       )}
-    </div>
-  )
-}
 
-function UtensilsCrossed({ size, className }: { size: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8"/><path d="M15 15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7"/><path d="m2.1 21.8 6.4-6.3"/><path d="m19 5-7 7"/>
-    </svg>
+      {/* ── WhatsApp result modal ─────────────────────────────────────────── */}
+      {waResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white w-full max-w-sm shadow-xl p-6 text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto">
+              <CheckCircle2 size={22} className="text-emerald-600" />
+            </div>
+            <div>
+              <p className="font-medium text-warm-900">Repartidor asignado</p>
+              <p className="text-warm-500 text-sm mt-1">{waResult.driverName} fue asignado al pedido.</p>
+            </div>
+            <a
+              href={waResult.waUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1db954] text-white py-3 text-sm font-medium transition-colors"
+              onClick={() => setWaResult(null)}
+            >
+              <MessageCircle size={16} />
+              Enviar link por WhatsApp
+            </a>
+            <button
+              onClick={() => setWaResult(null)}
+              className="text-warm-400 hover:text-warm-600 text-sm transition-colors"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

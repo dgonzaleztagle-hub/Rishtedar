@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { ArrowRight, Leaf, Wheat, Flame } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { DEMO_MENU_ITEMS } from '@/lib/data/menu-demo'
 import type { DietaryTag } from '@/types'
 
@@ -30,7 +30,7 @@ interface Props {
   slug: string
 }
 
-export function LocationMenuPreview({ locationName, slug }: Props) {
+export function LocationMenuPreview({ slug }: Props) {
   const dishes = SIGNATURE_IDS
     .map(id => DEMO_MENU_ITEMS.find(item => item.id === id))
     .filter(Boolean) as typeof DEMO_MENU_ITEMS

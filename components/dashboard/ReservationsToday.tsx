@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CalendarCheck, Clock, Users, CheckCircle2 } from 'lucide-react'
+import { CalendarCheck, Users, CheckCircle2 } from 'lucide-react'
 import type { ReservationStatus } from '@/types'
 
 const DEMO_RESERVATIONS = [

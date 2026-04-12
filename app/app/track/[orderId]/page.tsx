@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Gamepad2, X } from 'lucide-react'
 import { OrderTracker } from '@/components/pwa/OrderTracker'
 import { RishtedarGame } from '@/components/pwa/RishtedarGame'
+import { getWeekStart } from '@/lib/services/gameService'
 
 type ClientStatus = 'preparing' | 'on_the_way' | 'delivered'
 
@@ -34,20 +35,11 @@ function getTokensLeft(phone: string, businessId: string): number {
   return Math.max(0, 3 - used)
 }
 
-function useToken(phone: string, businessId: string) {
+function consumeToken(phone: string, businessId: string) {
   if (typeof window === 'undefined') return
   const key = `game_tokens_${businessId}_${phone}_${getWeekStart()}`
   const used = parseInt(localStorage.getItem(key) || '0', 10)
   localStorage.setItem(key, String(used + 1))
-}
-
-function getWeekStart(): string {
-  const d = new Date()
-  const day = d.getDay()
-  const diff = (day === 0 ? -6 : 1) - day
-  const monday = new Date(d)
-  monday.setDate(d.getDate() + diff)
-  return monday.toISOString().slice(0, 10)
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -89,7 +81,7 @@ export default function TrackPage() {
 
   const handleGameEnd = useCallback((score: number, counted: boolean) => {
     if (counted && order && phone) {
-      useToken(phone, order.business_id)
+      consumeToken(phone, order.business_id)
       setTokensLeft(prev => Math.max(0, prev - 1))
       // POST score to API (sin bloquear)
       fetch('/api/game/score', {

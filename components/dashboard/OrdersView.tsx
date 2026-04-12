@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import {
-  ShoppingBag, Clock, ChefHat, CheckCircle2, XCircle,
-  Truck, Filter, Search, Eye
+  Clock, ChefHat, CheckCircle2, XCircle,
+  Search, Eye
 } from 'lucide-react'
 import { formatCLP } from '@/lib/utils'
 import type { OrderStatus } from '@/types'

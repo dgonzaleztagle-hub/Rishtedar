@@ -149,9 +149,25 @@ export interface DeliveryTracking {
   status: 'assigned' | 'pickup' | 'in_transit' | 'delivered'
   driver_name: string | null
   driver_phone: string | null
+  driver_id: string | null
+  driver_token: string | null
+  delivery_photo_url: string | null
   last_lat: number | null
   last_lng: number | null
   estimated_delivery_time: string | null
+  created_at: string
+}
+
+// ─── DRIVERS ─────────────────────────────────────────────────────────────────
+
+export interface Driver {
+  id: string
+  business_id: string
+  name: string
+  phone: string
+  vehicle: 'moto' | 'bici' | 'auto' | 'a_pie'
+  zone: string | null
+  is_active: boolean
   created_at: string
 }
 

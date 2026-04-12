@@ -13,24 +13,20 @@ interface NearestLocationResult {
 }
 
 export function useNearestLocation(): NearestLocationResult {
-  const [result, setResult] = useState<NearestLocationResult>({
-    location: null,
-    distance: null,
-    loading: true,
-    error: null,
-  })
-
-  useEffect(() => {
+  const [result, setResult] = useState<NearestLocationResult>(() => {
     if (typeof window === 'undefined' || !navigator.geolocation) {
-      // Default to Providencia if no geolocation
-      setResult({
+      return {
         location: getLocationBySlug('providencia') ?? LOCATIONS[0],
         distance: null,
         loading: false,
         error: null,
-      })
-      return
+      }
     }
+    return { location: null, distance: null, loading: true, error: null }
+  })
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !navigator.geolocation) return
 
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {

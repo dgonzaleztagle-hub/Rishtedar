@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import {
-  CalendarCheck, Users, CheckCircle2, Clock, XCircle,
-  Phone, MessageSquare, ChevronLeft, ChevronRight
+  CalendarCheck, Users, CheckCircle2, XCircle,
+  Phone
 } from 'lucide-react'
 import type { ReservationStatus } from '@/types'
 

@@ -94,6 +94,7 @@ export function ItemDetailSheet({ item, onClose }: Props) {
                 style={{ background: `linear-gradient(135deg, ${style.gradient.replace('from-', '').replace(' via-', ', ').replace(' to-', ', ')})` }}
               >
                 {item.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={item.image_url}
                     alt={item.name}

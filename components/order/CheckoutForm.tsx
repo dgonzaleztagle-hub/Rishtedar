@@ -97,7 +97,7 @@ export function CheckoutForm() {
         clear()
         router.push(`/order/confirmation?order=${orderId}`)
       }
-    } catch (err) {
+    } catch {
       toast.error('Error al procesar el pedido. Intenta de nuevo.')
       setLoading(false)
     }

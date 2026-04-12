@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { format, addDays, isBefore, startOfDay, isToday } from 'date-fns'
+import { format, isBefore, startOfDay, isToday } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
-  MapPin, Users, Calendar, Clock, User, Phone, Mail,
+  MapPin, Users, User, Phone, Mail,
   MessageSquare, CheckCircle2, ChevronLeft, ChevronRight
 } from 'lucide-react'
+import Link from 'next/link'
 import { LOCATIONS } from '@/lib/locations'
 import { toast } from 'sonner'
 
@@ -45,7 +46,6 @@ export function ReservationForm({ initialLocal }: { initialLocal?: string }) {
 
   // Calendar helpers
   const today = startOfDay(new Date())
-  const maxDate = addDays(today, 90)
 
   function buildCalendarDays() {
     const start = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1)
@@ -133,12 +133,12 @@ export function ReservationForm({ initialLocal }: { initialLocal?: string }) {
               <span className="text-warm-800 font-medium">{partySize}</span>
             </div>
           </div>
-          <a
+          <Link
             href="/"
             className="inline-flex items-center justify-center bg-brand-700 hover:bg-brand-800 text-ivory px-8 py-4 text-xs tracking-widest uppercase font-medium transition-colors"
           >
             Volver al inicio
-          </a>
+          </Link>
         </motion.div>
       </div>
     )

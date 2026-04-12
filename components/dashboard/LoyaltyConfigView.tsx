@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Gift, Trophy, Zap, Star, Crown, Info, Save, CheckCircle2 } from 'lucide-react'
+import { Gift, Trophy, Zap, Star, Crown, Info, Save, CheckCircle2, Plus, Trash2 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,6 +18,11 @@ interface RankingPrize {
   rank: 1 | 2 | 3
   label: string
   description: string
+}
+
+interface TierBenefit {
+  icon: string
+  text: string
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -80,12 +85,37 @@ const TIER_THRESHOLDS = [
   { tier: 'Gold',   icon: Crown, color: '#c9952a', range: '5.000+',         from: 5000, to: null },
 ]
 
+const DEFAULT_TIER_BENEFITS: Record<'bronze' | 'silver' | 'gold', TierBenefit[]> = {
+  bronze: [
+    { icon: '✦', text: '1 punto por cada $1.000 gastado' },
+    { icon: '🎮', text: '1 ficha del Festín por semana' },
+    { icon: '🎂', text: 'Descuento 5% en tu cumpleaños' },
+    { icon: '🎁', text: 'Acceso a promociones exclusivas Circle' },
+  ],
+  silver: [
+    { icon: '✦', text: '1 punto por cada $1.000 gastado' },
+    { icon: '🎮', text: '2 fichas del Festín por semana' },
+    { icon: '🎂', text: 'Descuento 10% en tu cumpleaños' },
+    { icon: '📅', text: 'Reservas con prioridad (hasta 48h antes)' },
+    { icon: '🏷️', text: '5% de descuento en pedidos delivery' },
+  ],
+  gold: [
+    { icon: '✦', text: '1 punto por cada $1.000 gastado' },
+    { icon: '🎮', text: '3 fichas del Festín por semana' },
+    { icon: '🎂', text: 'Descuento 15% + postre gratis en cumpleaños' },
+    { icon: '👑', text: 'Mesa preferente sin espera' },
+    { icon: '🌟', text: 'Acceso a menús avant-première exclusivos' },
+    { icon: '🎉', text: 'Invitaciones a cenas y eventos especiales' },
+  ],
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function LoyaltyConfigView() {
-  const [rules, setRules]   = useState<EarnRule[]>(DEFAULT_EARN_RULES)
-  const [prizes, setPrizes] = useState<RankingPrize[]>(DEFAULT_PRIZES)
-  const [saved, setSaved]   = useState(false)
+  const [rules, setRules]         = useState<EarnRule[]>(DEFAULT_EARN_RULES)
+  const [prizes, setPrizes]       = useState<RankingPrize[]>(DEFAULT_PRIZES)
+  const [tierBenefits, setTierBenefits] = useState(DEFAULT_TIER_BENEFITS)
+  const [saved, setSaved]         = useState(false)
 
   function updateRule(id: string, field: keyof EarnRule, value: number | boolean) {
     setRules(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r))
@@ -93,6 +123,27 @@ export function LoyaltyConfigView() {
 
   function updatePrize(rank: number, description: string) {
     setPrizes(prev => prev.map(p => p.rank === rank ? { ...p, description } : p))
+  }
+
+  function updateBenefit(tier: keyof typeof tierBenefits, index: number, field: keyof TierBenefit, value: string) {
+    setTierBenefits(prev => ({
+      ...prev,
+      [tier]: prev[tier].map((b, i) => i === index ? { ...b, [field]: value } : b),
+    }))
+  }
+
+  function addBenefit(tier: keyof typeof tierBenefits) {
+    setTierBenefits(prev => ({
+      ...prev,
+      [tier]: [...prev[tier], { icon: '✦', text: 'Nuevo beneficio' }],
+    }))
+  }
+
+  function removeBenefit(tier: keyof typeof tierBenefits, index: number) {
+    setTierBenefits(prev => ({
+      ...prev,
+      [tier]: prev[tier].filter((_, i) => i !== index),
+    }))
   }
 
   function handleSave() {
@@ -159,6 +210,84 @@ export function LoyaltyConfigView() {
         </p>
       </section>
 
+      {/* ── Tier Benefits Editor ────────────────────────────────────────────── */}
+      <section>
+        <h2 className="text-base font-semibold text-warm-800 mb-1">Beneficios por nivel</h2>
+        <p className="text-warm-500 text-xs mb-4">
+          Estos beneficios se muestran en la página <strong>/circle</strong> y en la tarjeta del cliente en la app.
+          Edítalos aquí para mantenerlos actualizados sin tocar código.
+        </p>
+        <div className="space-y-5">
+          {(Object.entries(tierBenefits) as [keyof typeof tierBenefits, TierBenefit[]][]).map(([tierKey, benefits]) => {
+            const tierMeta = TIER_THRESHOLDS.find(t => t.tier.toLowerCase() === tierKey)!
+            const TierIcon = tierMeta?.icon ?? Star
+            return (
+              <div key={tierKey} className="border border-warm-200 bg-white">
+                {/* Tier header */}
+                <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
+                  <div className="flex items-center gap-2">
+                    <TierIcon size={14} style={{ color: tierMeta?.color }} />
+                    <span className="font-medium text-sm" style={{ color: tierMeta?.color }}>
+                      {tierMeta?.tier}
+                    </span>
+                    <span className="text-warm-400 text-xs">{tierMeta?.range}</span>
+                  </div>
+                  <button
+                    onClick={() => addBenefit(tierKey)}
+                    className="flex items-center gap-1 text-brand-700 hover:text-brand-900 text-xs font-medium transition-colors"
+                  >
+                    <Plus size={12} />
+                    Agregar
+                  </button>
+                </div>
+
+                {/* Benefits list */}
+                <div className="divide-y divide-warm-50">
+                  {benefits.map((benefit, index) => (
+                    <div key={index} className="flex items-center gap-3 px-5 py-3">
+                      {/* Icon input */}
+                      <input
+                        type="text"
+                        value={benefit.icon}
+                        onChange={e => updateBenefit(tierKey, index, 'icon', e.target.value)}
+                        maxLength={2}
+                        className="w-10 text-center border border-warm-200 text-base px-1 py-1.5 focus:outline-none focus:border-brand-400"
+                        title="Emoji o símbolo del beneficio"
+                      />
+                      {/* Text input */}
+                      <input
+                        type="text"
+                        value={benefit.text}
+                        onChange={e => updateBenefit(tierKey, index, 'text', e.target.value)}
+                        placeholder="Descripción del beneficio"
+                        className="flex-1 border border-warm-200 text-warm-700 text-sm px-3 py-1.5 focus:outline-none focus:border-brand-400"
+                      />
+                      {/* Remove */}
+                      <button
+                        onClick={() => removeBenefit(tierKey, index)}
+                        className="p-1.5 text-warm-400 hover:text-red-500 transition-colors shrink-0"
+                        title="Eliminar beneficio"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                  {benefits.length === 0 && (
+                    <p className="px-5 py-4 text-warm-400 text-xs text-center">
+                      Sin beneficios. Agrega el primero.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <p className="text-warm-400 text-xs mt-2">
+          💡 Los cambios se reflejan en <strong>/circle</strong> y en la app al guardar.
+          (Persistencia en DB en próxima iteración — por ahora aplica al recargar el dashboard.)
+        </p>
+      </section>
+
       {/* ── Earn Rules ──────────────────────────────────────────────────────── */}
       <section>
         <h2 className="text-base font-semibold text-warm-800 mb-4">Reglas de acumulación</h2>
@@ -210,7 +339,7 @@ export function LoyaltyConfigView() {
           <h2 className="text-base font-semibold text-warm-800">Premios del ranking semanal</h2>
         </div>
         <p className="text-warm-500 text-xs mb-4">
-          Los 3 mejores puntajes del juego "El Festín" cada semana reciben estos premios.
+          Los 3 mejores puntajes del juego &ldquo;El Festín&rdquo; cada semana reciben estos premios.
           Se envían como códigos de descuento a su cuenta Circle.
         </p>
         <div className="divide-y divide-warm-200 border border-warm-200">

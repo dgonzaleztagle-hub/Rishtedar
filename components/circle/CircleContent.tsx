@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import {
   Star, Gift, Crown, Zap, ArrowRight,
-  CheckCircle2, QrCode, Smartphone, Wallet,
+  QrCode, Smartphone, Wallet,
 } from 'lucide-react'
 
 // ─── tiers ───────────────────────────────────────────────────────────────────
@@ -17,10 +17,13 @@ const TIERS = [
     bg: 'from-[#2a1500] to-[#1a0e00]',
     border: 'border-[#cd7f3240]',
     icon: Star,
+    badge: null,
     benefits: [
-      'Acumula 1 punto por cada $1.000',
-      'Acceso a promociones exclusivas Circle',
-      'Email de bienvenida con oferta especial',
+      { icon: '✦', text: '1 punto por cada $1.000 gastado' },
+      { icon: '🎮', text: '1 ficha del Festín por semana' },
+      { icon: '🎂', text: 'Descuento 5% en tu cumpleaños' },
+      { icon: '🎁', text: 'Acceso a promociones exclusivas Circle' },
+      { icon: '📧', text: 'Oferta especial de bienvenida' },
     ],
   },
   {
@@ -30,13 +33,15 @@ const TIERS = [
     bg: 'from-[#1a1a1a] to-[#0f0f0f]',
     border: 'border-[#c0c0c040]',
     icon: Zap,
-    benefits: [
-      'Todo lo de Bronze',
-      '5% de descuento en cada visita',
-      'Prioridad en reservas (hasta 48h antes)',
-      'Puntos dobles los martes',
-    ],
+    badge: 'Más popular',
     featured: true,
+    benefits: [
+      { icon: '✦', text: '1 punto por cada $1.000 gastado' },
+      { icon: '🎮', text: '2 fichas del Festín por semana' },
+      { icon: '🎂', text: 'Descuento 10% en tu cumpleaños' },
+      { icon: '📅', text: 'Reservas con prioridad (hasta 48h antes)' },
+      { icon: '🏷️', text: '5% de descuento en pedidos delivery' },
+    ],
   },
   {
     name: 'Gold',
@@ -45,12 +50,14 @@ const TIERS = [
     bg: 'from-[#2a1a00] to-[#150d00]',
     border: 'border-[#c9952a40]',
     icon: Crown,
+    badge: 'Exclusivo',
     benefits: [
-      'Todo lo de Silver',
-      'Puntos dobles en tu cumpleaños',
-      'Acceso a menús exclusivos avant-première',
-      'Invitaciones a cenas especiales y eventos',
-      'Mesa preferente sin espera',
+      { icon: '✦', text: '1 punto por cada $1.000 gastado' },
+      { icon: '🎮', text: '3 fichas del Festín por semana' },
+      { icon: '🎂', text: 'Descuento 15% + postre gratis en cumpleaños' },
+      { icon: '👑', text: 'Mesa preferente sin espera' },
+      { icon: '🌟', text: 'Acceso a menús avant-première exclusivos' },
+      { icon: '🎉', text: 'Invitaciones a cenas y eventos especiales' },
     ],
   },
 ]
@@ -253,16 +260,23 @@ export function CircleContent() {
                       <span className="text-warm-600 text-xs">{tier.range}</span>
                     </div>
                     <h3
-                      className="font-display text-3xl italic mb-5 leading-none"
+                      className="font-display text-3xl italic mb-1 leading-none"
                       style={{ color: tier.color }}
                     >
                       {tier.name}
                     </h3>
+                    {'badge' in tier && tier.badge && (
+                      <span className="inline-block text-[9px] tracking-widest uppercase px-2 py-0.5 border mb-4"
+                        style={{ borderColor: `${tier.color}40`, color: tier.color }}>
+                        {tier.badge}
+                      </span>
+                    )}
+                    {!('badge' in tier && tier.badge) && <div className="mb-4" />}
                     <ul className="space-y-2.5">
                       {tier.benefits.map(b => (
-                        <li key={b} className="flex items-start gap-2.5">
-                          <CheckCircle2 size={13} className="mt-0.5 shrink-0" style={{ color: tier.color }} />
-                          <span className="text-warm-400 text-xs leading-relaxed">{b}</span>
+                        <li key={b.text} className="flex items-start gap-2.5">
+                          <span className="text-sm shrink-0 mt-0.5 leading-none">{b.icon}</span>
+                          <span className="text-warm-400 text-xs leading-relaxed">{b.text}</span>
                         </li>
                       ))}
                     </ul>

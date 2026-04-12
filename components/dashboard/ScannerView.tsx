@@ -1,19 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { QrCode, ExternalLink, Copy, CheckCircle2 } from 'lucide-react'
 import { QRScannerCore } from '@/components/scanner/QRScannerCore'
 import { BRANCH_TOKENS } from '@/lib/staff-tokens'
 import type { BranchOption } from './BranchLogin'
 
 export function DashboardScannerView() {
-  const [branch, setBranch] = useState<BranchOption | null>(null)
-  const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
+  const [branch] = useState<BranchOption | null>(() => {
+    if (typeof window === 'undefined') return null
     const stored = localStorage.getItem('rishtedar_branch')
-    if (stored) setBranch(JSON.parse(stored))
-  }, [])
+    return stored ? (JSON.parse(stored) as BranchOption) : null
+  })
+  const [copied, setCopied] = useState(false)
 
   if (!branch) return null
 

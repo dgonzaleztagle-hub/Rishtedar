@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { TrendingUp, TrendingDown, BarChart3, Users, ShoppingBag, CalendarCheck } from 'lucide-react'
+import { TrendingUp, TrendingDown, BarChart3, Users, ShoppingBag } from 'lucide-react'
 import { formatCLP } from '@/lib/utils'
 
 const PERIODS = ['Hoy', 'Esta semana', 'Este mes', 'Este año']
@@ -74,9 +74,6 @@ export function AnalyticsView() {
 
   const hourMax = Math.max(...HOURLY_REVENUE)
   const weekMax = Math.max(...WEEKLY_DATA.map(d => d.revenue))
-
-  const totalRevenue = LOCAL_BREAKDOWN.reduce((s, l) => s + l.revenue, 0)
-  const totalOrders = LOCAL_BREAKDOWN.reduce((s, l) => s + l.orders, 0)
 
   return (
     <div className="space-y-6">

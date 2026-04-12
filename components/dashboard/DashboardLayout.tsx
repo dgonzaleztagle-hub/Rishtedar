@@ -28,20 +28,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [branch, setBranch] = useState<BranchOption | null>(null)
-  const [ready, setReady] = useState(false)
+  const [branch] = useState<BranchOption | null>(() => {
+    if (typeof window === 'undefined') return null
+    const stored = localStorage.getItem('rishtedar_branch')
+    return stored ? (JSON.parse(stored) as BranchOption) : null
+  })
 
   useEffect(() => {
-    const stored = localStorage.getItem('rishtedar_branch')
-    if (!stored) {
-      router.replace('/dashboard/login')
-      return
-    }
-    setBranch(JSON.parse(stored))
-    setReady(true)
-  }, [router])
+    if (!branch) router.replace('/dashboard/login')
+  }, [branch, router])
 
-  if (!ready) {
+  if (!branch) {
     return (
       <div className="min-h-screen bg-warm-950 flex items-center justify-center">
         <div className="w-5 h-5 border-2 border-gold-600 border-t-transparent rounded-full animate-spin" />

@@ -1,4 +1,4 @@
-import { LOCATIONS, DAYS_ES } from '@/lib/locations'
+import { LOCATIONS } from '@/lib/locations'
 
 function buildHoursSchema(hours: Record<string, string>) {
   const dayMap: Record<string, string> = {

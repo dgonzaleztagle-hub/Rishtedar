@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-unused-vars */
 /**
  * Rishtedar Menu Image Scraper
  * Intercepts Mercat API calls on delivery.rishtedar.cl to extract product images.

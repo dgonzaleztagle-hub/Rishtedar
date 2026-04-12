@@ -5,6 +5,7 @@ import { Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { CheckCircle2, Clock, Phone, UtensilsCrossed } from 'lucide-react'
 import Link from 'next/link'
+import { NotificationPrompt } from '@/components/pwa/NotificationPrompt'
 
 function ConfirmationContent() {
   const params = useSearchParams()
@@ -78,8 +79,13 @@ function ConfirmationContent() {
           </p>
         </div>
 
+        {/* Notification prompt — solo si hay pedido confirmado */}
+        {!isPending && (
+          <NotificationPrompt moment="post_order" />
+        )}
+
         {/* Contact */}
-        <p className="text-warm-400 text-sm mb-6 flex items-center justify-center gap-2">
+        <p className="text-warm-400 text-sm mb-6 mt-6 flex items-center justify-center gap-2">
           <Phone size={13} />
           ¿Tienes alguna consulta? Llámanos a tu local más cercano
         </p>

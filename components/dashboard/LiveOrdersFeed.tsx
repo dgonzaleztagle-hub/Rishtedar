@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCLP } from '@/lib/utils'
-import { Clock, CheckCircle2, ChefHat, Truck, XCircle, ShoppingBag } from 'lucide-react'
+import { Clock, CheckCircle2, ChefHat, XCircle, ShoppingBag } from 'lucide-react'
 import type { Order, OrderStatus } from '@/types'
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; icon: typeof Clock; color: string; bg: string }> = {
@@ -59,7 +59,7 @@ const ORDER_TYPE_LABEL: Record<string, string> = {
 
 export function LiveOrdersFeed() {
   const [orders, setOrders] = useState<Partial<Order>[]>(DEMO_ORDERS)
-  const [_, setTick] = useState(0)
+  const [, setTick] = useState(0)
 
   // Tick every minute to update "time ago"
   useEffect(() => {

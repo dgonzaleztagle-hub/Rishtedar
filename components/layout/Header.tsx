@@ -5,12 +5,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  MapPin, Menu, X, ShoppingBag, User, Search,
+  Menu, X, ShoppingBag, User, Search,
   ChevronDown, Phone, Clock, UtensilsCrossed, Sparkles
 } from 'lucide-react'
 import { LOCATIONS } from '@/lib/locations'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 
 const NAV_ITEMS = [
   {

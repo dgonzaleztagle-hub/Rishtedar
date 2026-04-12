@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Tag, Edit2, Trash2, Calendar, Clock, MapPin, CheckCircle2 } from 'lucide-react'
+import { Plus, Tag, Trash2, Calendar, Clock, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { LOCATIONS } from '@/lib/locations'
 import { toast } from 'sonner'
