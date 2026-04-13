@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Clock, Save, Power, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Clock, Save, Power, AlertCircle, CheckCircle2, MapPin } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -17,7 +17,13 @@ interface DayConfig {
 type WeekSchedule = Record<DayKey, DayConfig>
 type ScheduleType = 'delivery' | 'reservations'
 
-// ─── Defaults ────────────────────────────────────────────────────────────────
+interface LocalSchedule {
+  delivery: WeekSchedule
+  reservations: WeekSchedule
+  isOpen: boolean
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const DAY_LABELS: { key: DayKey; label: string }[] = [
   { key: 'lun', label: 'Lunes' },
@@ -29,24 +35,39 @@ const DAY_LABELS: { key: DayKey; label: string }[] = [
   { key: 'dom', label: 'Domingo' },
 ]
 
-const DEFAULT_SCHEDULE: WeekSchedule = {
-  lun: { active: true,  open: '12:00', close: '23:00' },
-  mar: { active: true,  open: '12:00', close: '23:00' },
-  mie: { active: true,  open: '12:00', close: '23:00' },
-  jue: { active: true,  open: '12:00', close: '23:00' },
-  vie: { active: true,  open: '12:30', close: '23:30' },
-  sab: { active: true,  open: '12:30', close: '23:30' },
-  dom: { active: true,  open: '12:30', close: '22:30' },
+const LOCAL_BRANCHES = [
+  { id: 'providencia', name: 'Providencia' },
+  { id: 'vitacura',    name: 'Vitacura' },
+  { id: 'la-reina',   name: 'La Reina' },
+  { id: 'la-dehesa',  name: 'La Dehesa' },
+]
+
+const DEFAULT_DELIVERY: WeekSchedule = {
+  lun: { active: true, open: '12:00', close: '23:00' },
+  mar: { active: true, open: '12:00', close: '23:00' },
+  mie: { active: true, open: '12:00', close: '23:00' },
+  jue: { active: true, open: '12:00', close: '23:00' },
+  vie: { active: true, open: '12:30', close: '23:30' },
+  sab: { active: true, open: '12:30', close: '23:30' },
+  dom: { active: true, open: '12:30', close: '22:30' },
 }
 
 const DEFAULT_RESERVATIONS: WeekSchedule = {
-  lun: { active: true,  open: '12:00', close: '21:00' },
-  mar: { active: true,  open: '12:00', close: '21:00' },
-  mie: { active: true,  open: '12:00', close: '21:00' },
-  jue: { active: true,  open: '12:00', close: '21:00' },
-  vie: { active: true,  open: '12:30', close: '22:00' },
-  sab: { active: true,  open: '12:30', close: '22:00' },
-  dom: { active: true,  open: '12:30', close: '21:00' },
+  lun: { active: true, open: '12:00', close: '21:00' },
+  mar: { active: true, open: '12:00', close: '21:00' },
+  mie: { active: true, open: '12:00', close: '21:00' },
+  jue: { active: true, open: '12:00', close: '21:00' },
+  vie: { active: true, open: '12:30', close: '22:00' },
+  sab: { active: true, open: '12:30', close: '22:00' },
+  dom: { active: true, open: '12:30', close: '21:00' },
+}
+
+function defaultLocalSchedule(): LocalSchedule {
+  return {
+    delivery: structuredClone(DEFAULT_DELIVERY),
+    reservations: structuredClone(DEFAULT_RESERVATIONS),
+    isOpen: true,
+  }
 }
 
 // ─── DayRow ───────────────────────────────────────────────────────────────────
@@ -61,20 +82,13 @@ function DayRow({
 }) {
   return (
     <div className={`flex flex-wrap items-center gap-3 px-4 py-3 border-b border-warm-200 last:border-0 ${!config.active ? 'opacity-40' : ''}`}>
-      {/* Toggle */}
       <button
         onClick={() => onChange(dayKey, { ...config, active: !config.active })}
-        className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${config.active ? 'bg-brand-600' : 'bg-warm-300'}`}
+        className={`w-9 h-5 rounded-full transition-colors relative shrink-0 focus:outline-none ${config.active ? 'bg-brand-600' : 'bg-warm-300'}`}
       >
-        <span
-          className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${config.active ? 'translate-x-4' : 'translate-x-0.5'}`}
-        />
+        <span className={`absolute top-0.5 left-0 w-4 h-4 rounded-full bg-white shadow transition-transform ${config.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
       </button>
-
-      {/* Day label */}
       <span className="text-sm font-medium text-warm-700 w-20 shrink-0">{label}</span>
-
-      {/* Hours */}
       {config.active ? (
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <input
@@ -111,7 +125,6 @@ function SchedulePanel({
 }) {
   const label = type === 'delivery' ? 'Delivery' : 'Reservas'
 
-  // Apply all days with same hours
   function applyToAll(sourceKey: DayKey) {
     const source = schedule[sourceKey]
     DAY_LABELS.forEach(({ key }) => {
@@ -128,13 +141,12 @@ function SchedulePanel({
         </div>
         <button
           onClick={onSave}
-          className="flex items-center gap-1.5 bg-brand-700 hover:bg-brand-800 text-ivory text-xs px-3 py-1.5 tracking-wide uppercase font-medium transition-colors"
+          className="flex items-center gap-1.5 bg-brand-700 hover:bg-brand-800 text-ivory text-xs px-3 py-1.5 tracking-wide uppercase font-medium transition-colors focus:outline-none"
         >
           {saved ? <CheckCircle2 size={12} /> : <Save size={12} />}
           {saved ? 'Guardado' : 'Guardar'}
         </button>
       </div>
-
       <div>
         {DAY_LABELS.map(({ key, label: dayLabel }) => (
           <DayRow
@@ -146,7 +158,6 @@ function SchedulePanel({
           />
         ))}
       </div>
-
       <div className="px-4 py-3 border-t border-warm-100 bg-warm-50">
         <p className="text-warm-500 text-xs mb-2">Aplicar horario del día a todos:</p>
         <div className="flex flex-wrap gap-1.5">
@@ -154,7 +165,7 @@ function SchedulePanel({
             <button
               key={key}
               onClick={() => applyToAll(key)}
-              className="text-[10px] px-2 py-1 border border-warm-300 text-warm-500 hover:border-brand-400 hover:text-brand-600 transition-colors"
+              className="text-[10px] px-2 py-1 border border-warm-300 text-warm-500 hover:border-brand-400 hover:text-brand-600 transition-colors focus:outline-none"
             >
               {dayLabel}
             </button>
@@ -165,36 +176,128 @@ function SchedulePanel({
   )
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── LocalScheduleEditor ──────────────────────────────────────────────────────
 
-export function HorariosView() {
-  const [deliverySchedule, setDeliverySchedule] = useState<WeekSchedule>(DEFAULT_SCHEDULE)
-  const [reservationsSchedule, setReservationsSchedule] = useState<WeekSchedule>(DEFAULT_RESERVATIONS)
-  const [isOpen, setIsOpen] = useState(true)
+function LocalScheduleEditor({
+  localName,
+  scheduleData,
+  onUpdate,
+}: {
+  localName: string
+  scheduleData: LocalSchedule
+  onUpdate: (updated: Partial<LocalSchedule>) => void
+}) {
   const [savedDelivery, setSavedDelivery] = useState(false)
   const [savedReservations, setSavedReservations] = useState(false)
 
   function updateDelivery(key: DayKey, config: DayConfig) {
-    setSavedDelivery(false)
-    setDeliverySchedule(s => ({ ...s, [key]: config }))
+    onUpdate({ delivery: { ...scheduleData.delivery, [key]: config } })
   }
 
   function updateReservations(key: DayKey, config: DayConfig) {
-    setSavedReservations(false)
-    setReservationsSchedule(s => ({ ...s, [key]: config }))
+    onUpdate({ reservations: { ...scheduleData.reservations, [key]: config } })
   }
 
   function saveDelivery() {
-    // TODO: POST /api/admin/hours { type: 'delivery', schedule: deliverySchedule }
+    // TODO: POST /api/admin/hours { business_id, type: 'delivery', schedule }
     setSavedDelivery(true)
     setTimeout(() => setSavedDelivery(false), 3000)
   }
 
   function saveReservations() {
-    // TODO: POST /api/admin/hours { type: 'reservations', schedule: reservationsSchedule }
+    // TODO: POST /api/admin/hours { business_id, type: 'reservations', schedule }
     setSavedReservations(true)
     setTimeout(() => setSavedReservations(false), 3000)
   }
+
+  return (
+    <div className="space-y-4">
+      {/* On/Off override */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`flex items-center justify-between p-4 border ${scheduleData.isOpen ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}
+      >
+        <div className="flex items-center gap-3">
+          <Power size={16} className={scheduleData.isOpen ? 'text-emerald-600' : 'text-red-500'} />
+          <div>
+            <p className={`text-sm font-medium ${scheduleData.isOpen ? 'text-emerald-800' : 'text-red-800'}`}>
+              {scheduleData.isOpen ? `${localName} abierto` : `${localName} cerrado (override)`}
+            </p>
+            <p className={`text-xs mt-0.5 ${scheduleData.isOpen ? 'text-emerald-600' : 'text-red-500'}`}>
+              {scheduleData.isOpen
+                ? 'Siguiendo el horario configurado'
+                : 'Pedidos y reservas bloqueados hasta reapertura'}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => onUpdate({ isOpen: !scheduleData.isOpen })}
+          className={`w-11 h-6 rounded-full transition-colors relative focus:outline-none ${scheduleData.isOpen ? 'bg-emerald-500' : 'bg-red-400'}`}
+        >
+          <span className={`absolute top-0.5 left-0 w-5 h-5 rounded-full bg-white shadow transition-transform ${scheduleData.isOpen ? 'translate-x-5' : 'translate-x-0.5'}`} />
+        </button>
+      </motion.div>
+
+      {!scheduleData.isOpen && (
+        <div className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-200 text-xs text-amber-700">
+          <AlertCircle size={14} className="shrink-0 mt-0.5" />
+          El override de cierre afecta a este local únicamente. Los horarios configurados se respetarán cuando vuelvas a abrir.
+        </div>
+      )}
+
+      <SchedulePanel
+        type="delivery"
+        schedule={scheduleData.delivery}
+        onChange={updateDelivery}
+        onSave={saveDelivery}
+        saved={savedDelivery}
+      />
+      <SchedulePanel
+        type="reservations"
+        schedule={scheduleData.reservations}
+        onChange={updateReservations}
+        onSave={saveReservations}
+        saved={savedReservations}
+      />
+    </div>
+  )
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+export function HorariosView() {
+  const [branch] = useState<{ id: string; name: string } | null>(() => {
+    if (typeof window === 'undefined') return null
+    const stored = localStorage.getItem('rishtedar_branch')
+    return stored ? JSON.parse(stored) : null
+  })
+
+  const isAdmin = branch?.id === 'admin'
+
+  // Per-local schedule state (keyed by branch id)
+  const [schedules, setSchedules] = useState<Record<string, LocalSchedule>>(() => {
+    const map: Record<string, LocalSchedule> = {}
+    LOCAL_BRANCHES.forEach(b => { map[b.id] = defaultLocalSchedule() })
+    return map
+  })
+
+  // For manager view: single local schedule
+  const [managerSchedule, setManagerSchedule] = useState<LocalSchedule>(defaultLocalSchedule)
+
+  // Admin: which local tab is active
+  const [activeLocal, setActiveLocal] = useState(LOCAL_BRANCHES[0].id)
+
+  function updateLocalSchedule(localId: string, partial: Partial<LocalSchedule>) {
+    setSchedules(prev => ({
+      ...prev,
+      [localId]: { ...prev[localId], ...partial },
+    }))
+  }
+
+  const localName = isAdmin
+    ? (LOCAL_BRANCHES.find(b => b.id === activeLocal)?.name ?? '')
+    : (branch?.name ?? 'Local')
 
   return (
     <div className="p-6 max-w-2xl">
@@ -209,59 +312,41 @@ export function HorariosView() {
         </div>
       </div>
 
-      {/* On/Off override */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className={`flex items-center justify-between p-4 mb-6 border ${isOpen ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}
-      >
-        <div className="flex items-center gap-3">
-          <Power size={16} className={isOpen ? 'text-emerald-600' : 'text-red-500'} />
-          <div>
-            <p className={`text-sm font-medium ${isOpen ? 'text-emerald-800' : 'text-red-800'}`}>
-              {isOpen ? 'Local abierto' : 'Local cerrado (override)'}
-            </p>
-            <p className={`text-xs mt-0.5 ${isOpen ? 'text-emerald-600' : 'text-red-500'}`}>
-              {isOpen
-                ? 'Siguiendo el horario configurado'
-                : 'Pedidos y reservas bloqueados hasta reapertura'}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => setIsOpen(v => !v)}
-          className={`w-11 h-6 rounded-full transition-colors relative ${isOpen ? 'bg-emerald-500' : 'bg-red-400'}`}
-        >
-          <span
-            className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${isOpen ? 'translate-x-5' : 'translate-x-0.5'}`}
-          />
-        </button>
-      </motion.div>
-
-      {!isOpen && (
-        <div className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-200 mb-6 text-xs text-amber-700">
-          <AlertCircle size={14} className="shrink-0 mt-0.5" />
-          El override de cierre afecta a este local únicamente. Los horarios configurados se respetarán cuando vuelvas a abrir.
+      {/* Admin: local selector tabs */}
+      {isAdmin && (
+        <div className="flex gap-0 mb-6 border border-warm-200 bg-warm-50 overflow-x-auto">
+          {LOCAL_BRANCHES.map(b => (
+            <button
+              key={b.id}
+              onClick={() => setActiveLocal(b.id)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium whitespace-nowrap transition-colors focus:outline-none border-r border-warm-200 last:border-r-0 ${
+                activeLocal === b.id
+                  ? 'bg-brand-700 text-ivory'
+                  : 'text-warm-600 hover:text-warm-900 hover:bg-warm-100'
+              }`}
+            >
+              <MapPin size={11} />
+              {b.name}
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Schedules */}
-      <div className="space-y-6">
-        <SchedulePanel
-          type="delivery"
-          schedule={deliverySchedule}
-          onChange={updateDelivery}
-          onSave={saveDelivery}
-          saved={savedDelivery}
+      {/* Schedule editor */}
+      {isAdmin ? (
+        <LocalScheduleEditor
+          key={activeLocal}
+          localName={localName}
+          scheduleData={schedules[activeLocal]}
+          onUpdate={partial => updateLocalSchedule(activeLocal, partial)}
         />
-        <SchedulePanel
-          type="reservations"
-          schedule={reservationsSchedule}
-          onChange={updateReservations}
-          onSave={saveReservations}
-          saved={savedReservations}
+      ) : (
+        <LocalScheduleEditor
+          localName={localName}
+          scheduleData={managerSchedule}
+          onUpdate={partial => setManagerSchedule(prev => ({ ...prev, ...partial }))}
         />
-      </div>
+      )}
     </div>
   )
 }
