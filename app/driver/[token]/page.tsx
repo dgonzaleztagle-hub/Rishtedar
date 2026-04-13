@@ -87,6 +87,28 @@ export default function DriverTokenPage({
   // ── Fetch data ─────────────────────────────────────────────────────────────
   const fetchData = useCallback(async (tkn: string) => {
     setLoading(true)
+
+    // Demo mode — no DB needed
+    if (tkn === 'demo-token') {
+      setOrder({
+        id: 'demo-order',
+        order_number: 'RSH-DEMO01',
+        customer_name: 'Sofía Herrera',
+        customer_phone: '+56912345678',
+        delivery_address: 'Ricardo Lyon 222, Dpto 12, Providencia',
+        delivery_latitude: -33.4245,
+        delivery_longitude: -70.6083,
+        final_price: 33900,
+      })
+      setItems([
+        { quantity: 1, unit_price: 18900, item_name: 'Lamb Rogan Josh', special_instructions: null },
+        { quantity: 1, unit_price: 15000, item_name: 'Dal Makhani', special_instructions: 'Sin picante' },
+      ])
+      setTracking({ order_id: 'demo-order', status: 'assigned', driver_name: 'Repartidor Demo', delivery_photo_url: null })
+      setLoading(false)
+      return
+    }
+
     try {
       const res = await fetch(`/api/delivery/${tkn}`)
       if (!res.ok) {
@@ -114,6 +136,16 @@ export default function DriverTokenPage({
   async function updateStatus(newStatus: TrackingStatus, uploadedPhotoUrl?: string) {
     if (!token || !tracking) return
     setUpdating(true)
+
+    // Demo mode — solo actualiza UI
+    if (token === 'demo-token') {
+      await new Promise(r => setTimeout(r, 600))
+      setTracking(prev => prev ? { ...prev, status: newStatus } : prev)
+      if (uploadedPhotoUrl) setPhotoUrl(uploadedPhotoUrl)
+      setUpdating(false)
+      return
+    }
+
     try {
       const body: Record<string, string> = { status: newStatus }
       if (uploadedPhotoUrl) body.delivery_photo_url = uploadedPhotoUrl
@@ -213,20 +245,15 @@ export default function DriverTokenPage({
       <div className="px-5 py-5 space-y-5">
 
         {/* ── Progress steps ──────────────────────────────────────────────── */}
-        <div className="flex items-center">
+        <div className="flex items-start">
           {STATUS_STEPS.map((step, i) => {
             const done    = i < stepIndex
             const current = i === stepIndex
             const StepIcon = step.icon
             return (
-              <div key={step.key} className="flex items-center flex-1">
-                <div className="flex flex-col items-center gap-1 flex-1">
-                  {i > 0 && (
-                    <div
-                      className={`absolute ml-0 h-0.5 w-full max-w-[4rem] -translate-x-1/2 ${done || current ? 'bg-gold-600' : 'bg-warm-800'}`}
-                      style={{ position: 'relative', width: '100%', marginBottom: '-1rem' }}
-                    />
-                  )}
+              <div key={step.key} className="flex items-start flex-1">
+                {/* circle + label */}
+                <div className="flex flex-col items-center gap-1 flex-shrink-0 w-10">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors ${
                     done    ? 'bg-gold-700 border-gold-600' :
                     current ? 'bg-brand-700 border-brand-500 ring-2 ring-brand-800' :
@@ -241,8 +268,9 @@ export default function DriverTokenPage({
                     {step.label}
                   </span>
                 </div>
+                {/* connector line */}
                 {i < STATUS_STEPS.length - 1 && (
-                  <div className={`flex-1 h-0.5 mb-4 ${i < stepIndex ? 'bg-gold-700' : 'bg-warm-800'}`} />
+                  <div className={`flex-1 h-0.5 mt-4 ${done ? 'bg-gold-700' : 'bg-warm-800'}`} />
                 )}
               </div>
             )

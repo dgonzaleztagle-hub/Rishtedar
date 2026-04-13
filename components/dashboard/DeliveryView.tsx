@@ -186,7 +186,7 @@ export function DeliveryView() {
           : o
       ))
       const waPhone = `56${driver.phone.replace(/\s+/g, '')}`
-      const driverUrl = `https://rishtedar.cl/driver/demo-token`
+      const driverUrl = `${window.location.origin}/driver/demo-token`
       const msg = encodeURIComponent(`Hola ${driver.name}, tienes un nuevo delivery en Rishtedar.\n${driverUrl}`)
       setWaResult({ waUrl: `https://wa.me/${waPhone}?text=${msg}`, driverName: driver.name })
       console.warn('[assign] DB error — demo mode', err)
@@ -288,7 +288,8 @@ export function DeliveryView() {
 
           {active.map(order => {
             const cfg = STATUS_CONFIG[order.status]
-            const Icon = cfg.icon
+            const isUnassigned = !order.driver_id
+            const Icon = isUnassigned ? User : cfg.icon
             const driver = drivers.find(d => d.id === order.driver_id)
             const isExpanded = expanded === order.id
             const canAdvance = order.status !== 'delivered' && !!order.driver_id
@@ -303,11 +304,12 @@ export function DeliveryView() {
                 <div className="h-0.5 bg-warm-100">
                   <div
                     className={`h-full transition-all duration-500 ${
+                      isUnassigned             ? 'bg-amber-300' :
                       order.status === 'delivered' ? 'bg-emerald-500' :
                       order.status === 'on_route'  ? 'bg-purple-500' :
                       order.status === 'pickup'    ? 'bg-blue-500'   : 'bg-amber-400'
                     }`}
-                    style={{ width: `${(cfg.step / 4) * 100}%` }}
+                    style={{ width: isUnassigned ? '0%' : `${(cfg.step / 4) * 100}%` }}
                   />
                 </div>
 
@@ -316,9 +318,9 @@ export function DeliveryView() {
                   className="flex items-center gap-3 px-5 py-4 cursor-pointer hover:bg-warm-50 transition-colors"
                   onClick={() => setExpanded(isExpanded ? null : order.id)}
                 >
-                  <div className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 ${cfg.bg} ${cfg.color} text-xs font-medium w-28`}>
+                  <div className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium w-28 ${isUnassigned ? 'bg-amber-50 text-amber-700' : `${cfg.bg} ${cfg.color}`}`}>
                     <Icon size={11} />
-                    {cfg.label}
+                    {isUnassigned ? 'Sin asignar' : cfg.label}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import {
-  LayoutDashboard, ShoppingBag, CalendarCheck, BarChart3,
+  LayoutDashboard, CalendarCheck, BarChart3,
   Tag, UtensilsCrossed, Menu, X, ChevronRight, Truck, MapPin, LayoutGrid, Clock,
   QrCode, Gift,
 } from 'lucide-react'
@@ -13,7 +13,6 @@ import type { BranchOption } from './BranchLogin'
 
 const NAV = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
-  { href: '/dashboard/orders', icon: ShoppingBag, label: 'Órdenes' },
   { href: '/dashboard/delivery', icon: Truck, label: 'Delivery' },
   { href: '/dashboard/reservations', icon: CalendarCheck, label: 'Reservas' },
   { href: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },

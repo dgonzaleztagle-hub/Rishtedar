@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Tag, Trash2, Calendar, Clock, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -60,10 +60,30 @@ const emptyForm: FormData = {
 }
 
 export function PromotionsCMS() {
-  const [promotions, setPromotions] = useState<Partial<Promotion>[]>(DEMO_PROMOTIONS)
+  const [promotions, setPromotions] = useState<Partial<Promotion>[]>([])
+  const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<FormData>(emptyForm)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    async function fetchPromotions() {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      if (!supabaseUrl?.startsWith('http')) {
+        setPromotions(DEMO_PROMOTIONS)
+        setLoading(false)
+        return
+      }
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('promotions')
+        .select('*')
+        .order('created_at', { ascending: false })
+      setPromotions(data?.length ? data : DEMO_PROMOTIONS)
+      setLoading(false)
+    }
+    fetchPromotions()
+  }, [])
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
@@ -145,7 +165,7 @@ export function PromotionsCMS() {
   async function deletePromo(id: string) {
     setPromotions(prev => prev.filter(p => p.id !== id))
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    if (url && url.startsWith('http')) {
+    if (url && url.startsWith('http') && !id.startsWith('p')) {
       const supabase = createClient()
       await supabase.from('promotions').delete().eq('id', id)
     }
@@ -279,7 +299,10 @@ export function PromotionsCMS() {
 
       {/* Promotions list */}
       <div className="space-y-3">
-        {promotions.map(promo => (
+        {loading && (
+          <div className="py-8 text-center text-warm-400 text-sm">Cargando promociones...</div>
+        )}
+        {!loading && promotions.map(promo => (
           <div key={promo.id} className={`bg-white border ${promo.is_active ? 'border-warm-200' : 'border-warm-100 opacity-60'} p-5`}>
             <div className="flex items-start gap-4">
               <div className="flex-1 min-w-0">
