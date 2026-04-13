@@ -1,19 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CalendarCheck, Users, CheckCircle2 } from 'lucide-react'
 import type { ReservationStatus } from '@/types'
-
-const DEMO_RESERVATIONS = [
-  { id: '1', time: '12:00', name: 'Familia Torres', party: 4, status: 'confirmed' as ReservationStatus },
-  { id: '2', time: '13:30', name: 'Miguel Fernández', party: 2, status: 'checked_in' as ReservationStatus },
-  { id: '3', time: '14:00', name: 'Empresa TechCorp', party: 8, status: 'confirmed' as ReservationStatus },
-  { id: '4', time: '19:00', name: 'Laura Soto', party: 3, status: 'pending' as ReservationStatus },
-  { id: '5', time: '19:30', name: 'Aniversario Silva', party: 2, status: 'confirmed' as ReservationStatus },
-  { id: '6', time: '20:00', name: 'Grupo Cumpleaños', party: 10, status: 'confirmed' as ReservationStatus },
-  { id: '7', time: '20:30', name: 'Valentina Castro', party: 4, status: 'pending' as ReservationStatus },
-  { id: '8', time: '21:00', name: 'Don Roberto', party: 6, status: 'confirmed' as ReservationStatus },
-]
+import { createClient } from '@/lib/supabase/client'
+import {
+  getTodayReservations,
+  updateReservationStatus,
+  type DashboardReservation,
+} from '@/lib/services/reservationService'
 
 const STATUS_COLORS: Record<ReservationStatus, string> = {
   pending: 'text-amber-600 bg-amber-50',
@@ -34,13 +29,42 @@ const STATUS_LABELS: Record<ReservationStatus, string> = {
 }
 
 export function ReservationsToday() {
-  const [reservations, setReservations] = useState(DEMO_RESERVATIONS)
+  const [reservations, setReservations] = useState<DashboardReservation[]>([])
+  const [loading, setLoading] = useState(true)
 
-  function checkIn(id: string) {
-    setReservations(prev => prev.map(r => r.id === id ? { ...r, status: 'checked_in' as ReservationStatus } : r))
+  useEffect(() => {
+    getTodayReservations()
+      .then(setReservations)
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
+  // Realtime: re-fetch on any change to today's reservations
+  useEffect(() => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    if (!supabaseUrl?.startsWith('http')) return
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel('reservations-today')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => {
+        getTodayReservations().then(setReservations).catch(console.error)
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
+
+  async function checkIn(id: string) {
+    setReservations(prev =>
+      prev.map(r => r.id === id ? { ...r, status: 'checked_in' as ReservationStatus } : r)
+    )
+    await updateReservationStatus(id, 'checked_in').catch(console.error)
   }
 
-  const totalCovers = reservations.filter(r => r.status !== 'cancelled').reduce((s, r) => s + r.party, 0)
+  const totalCovers = reservations
+    .filter(r => r.status !== 'cancelled')
+    .reduce((s, r) => s + r.party, 0)
 
   return (
     <div className="bg-white border border-warm-200 h-full">
@@ -56,6 +80,12 @@ export function ReservationsToday() {
       </div>
 
       <div className="divide-y divide-warm-100 max-h-96 overflow-y-auto">
+        {loading && (
+          <div className="px-5 py-6 text-center text-sm text-warm-400">Cargando…</div>
+        )}
+        {!loading && reservations.length === 0 && (
+          <div className="px-5 py-6 text-center text-sm text-warm-400">Sin reservas para hoy</div>
+        )}
         {reservations.map(r => (
           <div key={r.id} className="flex items-center gap-3 px-5 py-3 hover:bg-warm-50 transition-colors">
             <div className="shrink-0 text-center">
