@@ -1,6 +1,6 @@
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
-import { PromoBanner } from '@/components/home/PromoBanner'
+
 import { ReservationForm } from '@/components/reservar/ReservationForm'
 import type { Metadata } from 'next'
 
@@ -20,7 +20,6 @@ export default async function ReservarPage({
 
   return (
     <>
-      <PromoBanner />
       <Header />
       <main className="pt-20 min-h-screen bg-ivory">
         <div className="bg-warm-950 py-14 sm:py-20 md:py-28 text-center relative overflow-hidden">

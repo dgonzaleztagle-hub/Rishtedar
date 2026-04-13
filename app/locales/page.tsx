@@ -1,6 +1,6 @@
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
-import { PromoBanner } from '@/components/home/PromoBanner'
+
 import { LocationsGrid } from '@/components/locales/LocationsGrid'
 import type { Metadata } from 'next'
 
@@ -14,7 +14,6 @@ export const metadata: Metadata = {
 export default function LocalesPage() {
   return (
     <>
-      <PromoBanner />
       <Header />
       <main className="pt-20">
         {/* Page hero */}

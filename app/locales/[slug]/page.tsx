@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { MapPin, Phone, Mail, Clock, ArrowLeft, ExternalLink } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
-import { PromoBanner } from '@/components/home/PromoBanner'
+
 import { LocationHero } from '@/components/locales/LocationHero'
 import { LocationMenuPreview } from '@/components/locales/LocationMenuPreview'
 import { getLocationBySlug, LOCATIONS, DAYS_ES } from '@/lib/locations'
@@ -102,7 +102,7 @@ export default async function LocalePage({ params }: Props) {
 
   return (
     <>
-      <PromoBanner />
+<>
       <Header />
 
       <main className="pt-20 min-h-screen bg-ivory">

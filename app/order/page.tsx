@@ -1,6 +1,6 @@
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
-import { PromoBanner } from '@/components/home/PromoBanner'
+
 import { OrderFlow } from '@/components/order/OrderFlow'
 import type { Metadata } from 'next'
 
@@ -19,7 +19,6 @@ export default async function OrderPage({
 
   return (
     <>
-      <PromoBanner />
       <Header />
       <main className="pt-20 min-h-screen bg-ivory">
         <OrderFlow initialLocal={local} initialItem={item} />

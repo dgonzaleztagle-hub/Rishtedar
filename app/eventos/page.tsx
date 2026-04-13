@@ -1,6 +1,6 @@
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
-import { PromoBanner } from '@/components/home/PromoBanner'
+
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -48,7 +48,6 @@ const EVENTS = [
 export default function EventosPage() {
   return (
     <>
-      <PromoBanner />
       <Header />
       <main className="pt-20">
         {/* Hero */}

@@ -6,10 +6,11 @@ import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Menu, X, ShoppingBag, User, Search,
-  ChevronDown, Phone, Clock, UtensilsCrossed, Sparkles
+  ChevronDown, UtensilsCrossed, Sparkles
 } from 'lucide-react'
 import { LOCATIONS } from '@/lib/locations'
 import { cn } from '@/lib/utils'
+import { PromoBanner } from '@/components/home/PromoBanner'
 
 const NAV_ITEMS = [
   {
@@ -122,32 +123,8 @@ export function Header() {
             : 'bg-gradient-to-b from-black/60 to-transparent'
         )}
       >
-        {/* Top bar — contact info (hidden on mobile) */}
-        <div
-          className={cn(
-            'hidden md:block border-b border-gold-700/20 transition-all duration-500 overflow-hidden',
-            scrolled || !isHome ? 'max-h-0 opacity-0' : 'max-h-10 opacity-100'
-          )}
-        >
-          <div className="container mx-auto px-6 flex items-center justify-between py-1.5">
-            <div className="flex items-center gap-6">
-              {LOCATIONS.slice(0, 2).map(loc => (
-                <a
-                  key={loc.id}
-                  href={`tel:${loc.phone}`}
-                  className="flex items-center gap-1.5 text-warm-300 hover:text-gold-400 transition-colors text-xs"
-                >
-                  <Phone size={11} />
-                  <span>{loc.name.replace('Rishtedar ', '')}: {loc.phone}</span>
-                </a>
-              ))}
-            </div>
-            <div className="flex items-center gap-1.5 text-warm-300 text-xs">
-              <Clock size={11} />
-              <span>Lun–Jue 12:00–23:00 · Vie–Sáb 12:30–23:30</span>
-            </div>
-          </div>
-        </div>
+        {/* Promo banner — inside fixed header so it's always visible */}
+        <PromoBanner />
 
         {/* Main nav */}
         <div className="container mx-auto px-6">
