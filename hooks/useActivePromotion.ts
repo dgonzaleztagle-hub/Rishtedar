@@ -19,13 +19,14 @@ export function useActivePromotion(businessId?: string) {
       const now = new Date()
       const dayOfWeek = now.getDay() // 0=Sun...6=Sat
       const hour = now.getHours()
+      const today = now.toISOString().split('T')[0] // 'YYYY-MM-DD'
 
       let query = supabase
         .from('promotions')
         .select('*')
         .eq('is_active', true)
-        .lte('valid_from', now.toISOString())
-        .gte('valid_to', now.toISOString())
+        .lte('valid_from', today)
+        .gte('valid_to', today)
         .order('discount_value', { ascending: false })
         .limit(1)
 
