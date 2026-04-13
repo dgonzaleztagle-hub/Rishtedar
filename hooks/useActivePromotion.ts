@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import type { Promotion } from '@/types'
 
 export function useActivePromotion(businessId?: string) {
@@ -10,55 +9,34 @@ export function useActivePromotion(businessId?: string) {
 
   useEffect(() => {
     async function fetchPromotion() {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      if (!supabaseUrl || !supabaseUrl.startsWith('http')) {
-        setLoading(false)
-        return
-      }
-      const supabase = createClient()
-      const now = new Date()
-      const dayOfWeek = now.getDay() // 0=Sun...6=Sat
-      const hour = now.getHours()
-      const today = now.toISOString().split('T')[0] // 'YYYY-MM-DD'
+      try {
+        const params = businessId ? `?business_id=${businessId}` : ''
+        const res = await fetch(`/api/promotions/active${params}`)
+        const data: Promotion[] = await res.json()
 
-      let query = supabase
-        .from('promotions')
-        .select('*')
-        .eq('is_active', true)
-        .lte('valid_from', today)
-        .gte('valid_to', today)
-        .order('discount_value', { ascending: false })
-        .limit(1)
-
-      if (businessId) {
-        query = query.or(`business_id.is.null,business_id.eq.${businessId}`)
-      }
-
-      const { data } = await query
-
-      if (data && data.length > 0) {
-        const promo = data[0] as Promotion
-
-        // Validate day of week if specified
-        if (promo.day_of_week !== null && promo.day_of_week !== dayOfWeek) {
-          setPromotion(null)
+        if (!Array.isArray(data) || data.length === 0) {
           setLoading(false)
           return
         }
 
-        // Validate hour if specified
-        if (promo.start_hour !== null && promo.end_hour !== null) {
-          if (hour < promo.start_hour || hour >= promo.end_hour) {
-            setPromotion(null)
-            setLoading(false)
-            return
+        const now = new Date()
+        const dayOfWeek = now.getDay()
+        const hour = now.getHours()
+
+        const match = data.find(promo => {
+          if (promo.day_of_week !== null && promo.day_of_week !== dayOfWeek) return false
+          if (promo.start_hour !== null && promo.end_hour !== null) {
+            if (hour < promo.start_hour || hour >= promo.end_hour) return false
           }
-        }
+          return true
+        })
 
-        setPromotion(promo)
+        setPromotion(match ?? null)
+      } catch {
+        // silencioso
+      } finally {
+        setLoading(false)
       }
-
-      setLoading(false)
     }
 
     fetchPromotion()

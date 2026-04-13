@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Tag, Trash2, Calendar, Clock, MapPin } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { LOCATIONS } from '@/lib/locations'
 import { toast } from 'sonner'
 import type { Promotion } from '@/types'
@@ -68,19 +67,15 @@ export function PromotionsCMS() {
 
   useEffect(() => {
     async function fetchPromotions() {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      if (!supabaseUrl?.startsWith('http')) {
+      try {
+        const res = await fetch('/api/promotions')
+        const data = await res.json()
+        setPromotions(Array.isArray(data) && data.length ? data : DEMO_PROMOTIONS)
+      } catch {
         setPromotions(DEMO_PROMOTIONS)
+      } finally {
         setLoading(false)
-        return
       }
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('promotions')
-        .select('*')
-        .order('created_at', { ascending: false })
-      setPromotions(data?.length ? data : DEMO_PROMOTIONS)
-      setLoading(false)
     }
     fetchPromotions()
   }, [])
@@ -97,33 +92,32 @@ export function PromotionsCMS() {
     }
     setSaving(true)
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const hasDB = !!(supabaseUrl && supabaseUrl.startsWith('http'))
-
     let data: Partial<Promotion> | null = null
     let error: Error | null = null
 
-    if (hasDB) {
-      const supabase = createClient()
-      const result = await supabase.from('promotions').insert({
-        title: form.title,
-        description: form.description || null,
-        discount_type: form.discount_type,
-        discount_value: parseFloat(form.discount_value),
-        applicable_to: form.applicable_to,
-        business_id: form.business_id || null,
-        valid_from: form.valid_from,
-        valid_to: form.valid_to,
-        day_of_week: form.day_of_week ? parseInt(form.day_of_week) : null,
-        start_hour: form.start_hour ? parseInt(form.start_hour) : null,
-        end_hour: form.end_hour ? parseInt(form.end_hour) : null,
-        is_active: true,
-        usage_count: 0,
-      }).select().single()
-      data = result.data
-      error = result.error as Error | null
-    } else {
-      error = new Error('no-db')
+    try {
+      const res = await fetch('/api/promotions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: form.title,
+          description: form.description || null,
+          discount_type: form.discount_type,
+          discount_value: parseFloat(form.discount_value),
+          applicable_to: form.applicable_to,
+          business_id: form.business_id || null,
+          valid_from: form.valid_from,
+          valid_to: form.valid_to,
+          day_of_week: form.day_of_week ? parseInt(form.day_of_week) : null,
+          start_hour: form.start_hour ? parseInt(form.start_hour) : null,
+          end_hour: form.end_hour ? parseInt(form.end_hour) : null,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      data = json
+    } catch (e) {
+      error = e as Error
     }
 
     setSaving(false)
@@ -155,19 +149,19 @@ export function PromotionsCMS() {
 
   async function toggleActive(id: string, current: boolean) {
     setPromotions(prev => prev.map(p => p.id === id ? { ...p, is_active: !current } : p))
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    if (url && url.startsWith('http')) {
-      const supabase = createClient()
-      await supabase.from('promotions').update({ is_active: !current }).eq('id', id)
+    if (!id.startsWith('p')) {
+      await fetch('/api/promotions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, is_active: !current }),
+      })
     }
   }
 
   async function deletePromo(id: string) {
     setPromotions(prev => prev.filter(p => p.id !== id))
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    if (url && url.startsWith('http') && !id.startsWith('p')) {
-      const supabase = createClient()
-      await supabase.from('promotions').delete().eq('id', id)
+    if (!id.startsWith('p')) {
+      await fetch(`/api/promotions?id=${id}`, { method: 'DELETE' })
     }
     toast.success('Promoción eliminada')
   }
