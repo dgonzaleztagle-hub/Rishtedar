@@ -175,12 +175,11 @@ export function LoyaltyConfigView() {
       </div>
 
       {/* Info banner */}
-      <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 px-4 py-3">
-        <Info size={15} className="text-blue-500 shrink-0 mt-0.5" />
-        <p className="text-blue-700 text-xs leading-relaxed">
-          Estos valores definen las reglas visibles para el cliente en{' '}
-          <strong>/circle</strong> y en la app. Cambiarlos aquí actualiza la lógica del sistema.
-          Los puntos ya acumulados no se ven afectados.
+      <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 px-4 py-3">
+        <Info size={15} className="text-amber-500 shrink-0 mt-0.5" />
+        <p className="text-amber-700 text-xs leading-relaxed">
+          Vista de configuración — los cambios son visuales por ahora y se pierden al recargar.
+          La persistencia en base de datos se activa en la siguiente fase.
         </p>
       </div>
 
@@ -283,8 +282,7 @@ export function LoyaltyConfigView() {
           })}
         </div>
         <p className="text-warm-400 text-xs mt-2">
-          💡 Los cambios se reflejan en <strong>/circle</strong> y en la app al guardar.
-          (Persistencia en DB en próxima iteración — por ahora aplica al recargar el dashboard.)
+          Los cambios son visuales y se pierden al recargar. La persistencia en DB se activa en la siguiente fase.
         </p>
       </section>
 

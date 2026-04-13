@@ -81,10 +81,12 @@ export function MenuView() {
           <h1 className="text-2xl font-semibold text-warm-900">Menú</h1>
           <p className="text-warm-500 text-sm mt-0.5">{activeCount} platos activos · {items.length - activeCount} ocultos</p>
         </div>
-        <button className="flex items-center gap-2 bg-brand-800 hover:bg-brand-900 text-ivory text-sm px-4 py-2.5 transition-colors">
-          <Plus size={14} />
-          Agregar plato
-        </button>
+        <div title="Disponible en producción — la edición de menú se conecta a DB en la siguiente fase">
+          <button disabled className="flex items-center gap-2 bg-brand-800 text-ivory text-sm px-4 py-2.5 opacity-40 cursor-not-allowed">
+            <Plus size={14} />
+            Agregar plato
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -162,7 +164,11 @@ export function MenuView() {
                 </div>
 
                 {/* Edit */}
-                <button className="shrink-0 p-1.5 text-warm-400 hover:text-warm-700 hover:bg-warm-100 transition-colors">
+                <button
+                  disabled
+                  title="Disponible en producción — la edición de menú se conecta a DB en la siguiente fase"
+                  className="shrink-0 p-1.5 text-warm-200 cursor-not-allowed"
+                >
                   <Edit2 size={13} />
                 </button>
               </div>

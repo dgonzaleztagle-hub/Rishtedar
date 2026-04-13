@@ -111,7 +111,7 @@ export function ReservationForm({ initialLocal }: { initialLocal?: string }) {
           </div>
           <h2 className="font-display text-4xl italic text-warm-950 mb-2">¡Reserva confirmada!</h2>
           <p className="text-warm-500 mb-6">
-            Reserva #{confirmed.number} confirmada. Te hemos enviado los detalles al correo.
+            Reserva #{confirmed.number} confirmada.{form.email ? ' Te hemos enviado los detalles al correo.' : ' Guarda este número como referencia.'}
           </p>
           <div className="bg-white border border-warm-200 p-6 text-left mb-8 space-y-2">
             <div className="flex justify-between text-sm">

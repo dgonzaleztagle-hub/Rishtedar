@@ -201,8 +201,12 @@ export function HorariosView() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-warm-900 mb-1">Horarios del local</h1>
         <p className="text-warm-500 text-sm">
-          Configura horarios independientes para delivery y reservas. Los clientes no podrán pedir ni reservar fuera de estos horarios.
+          Configura horarios independientes para delivery y reservas.
         </p>
+        <div className="flex items-start gap-2 mt-3 p-3 bg-amber-50 border border-amber-200 text-xs text-amber-700">
+          <AlertCircle size={13} className="shrink-0 mt-0.5" />
+          Vista de configuración — los cambios no se persisten todavía. La validación de horarios en pedidos y reservas se activa en la siguiente fase.
+        </div>
       </div>
 
       {/* On/Off override */}

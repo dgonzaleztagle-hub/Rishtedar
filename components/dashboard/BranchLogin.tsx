@@ -67,7 +67,7 @@ export function BranchLogin() {
   const router = useRouter()
 
   function select(branch: BranchOption) {
-    if (branch.id === 'miami') return
+    if (branch.id === 'miami-wynwood') return
     localStorage.setItem('rishtedar_branch', JSON.stringify(branch))
     router.push('/dashboard')
   }
