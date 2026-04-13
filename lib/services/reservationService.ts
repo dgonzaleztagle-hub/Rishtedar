@@ -1,12 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
-import { LOCATIONS } from '@/lib/locations'
-import type { Reservation, ReservationStatus } from '@/types'
-
-function businessDisplayName(businessId: string): string {
-  const loc = LOCATIONS.find(l => l.id === businessId)
-  if (!loc) return businessId
-  return loc.name.replace(/^Rishtedar\s+/i, '')
-}
+import type { ReservationStatus } from '@/types'
 
 export interface DashboardReservation {
   id: string
@@ -30,88 +22,35 @@ export interface UpcomingReservation {
   status: ReservationStatus
 }
 
-function mapToDisplay(r: Reservation): DashboardReservation {
-  return {
-    id: r.id,
-    time: r.reservation_time,
-    name: r.customer_name,
-    party: r.party_size,
-    status: r.status,
-    phone: r.customer_phone,
-    local: businessDisplayName(r.business_id),
-    request: r.special_requests ?? '',
-  }
-}
-
-function todayISO(): string {
-  return new Date().toISOString().split('T')[0]
+function localDateISO(): string {
+  // Use en-CA locale to get YYYY-MM-DD in the client's local timezone
+  return new Date().toLocaleDateString('en-CA')
 }
 
 export async function getTodayReservations(): Promise<DashboardReservation[]> {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('reservations')
-    .select('*')
-    .eq('reservation_date', todayISO())
-    .not('status', 'in', '(cancelled,completed)')
-    .order('reservation_time', { ascending: true })
-
-  if (error) throw error
-  return (data as Reservation[]).map(mapToDisplay)
+  const res = await fetch(`/api/reservations/today?date=${localDateISO()}`)
+  if (!res.ok) throw new Error('Error al cargar reservas de hoy')
+  return res.json()
 }
 
 export async function getUpcomingReservations(): Promise<UpcomingReservation[]> {
-  const supabase = createClient()
-
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
   const tomorrow = new Date(today)
   tomorrow.setDate(today.getDate() + 1)
   const ceiling = new Date(today)
   ceiling.setDate(today.getDate() + 7)
-
-  const fromStr = tomorrow.toISOString().split('T')[0]
-  const toStr = ceiling.toISOString().split('T')[0]
-
-  const { data, error } = await supabase
-    .from('reservations')
-    .select('*')
-    .gte('reservation_date', fromStr)
-    .lte('reservation_date', toStr)
-    .neq('status', 'cancelled')
-    .order('reservation_date', { ascending: true })
-    .order('reservation_time', { ascending: true })
-
-  if (error) throw error
-
-  const DAYS_ES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
-
-  return (data as Reservation[]).map(r => {
-    // Parse date without timezone shift
-    const [y, m, d] = r.reservation_date.split('-').map(Number)
-    const date = new Date(y, m - 1, d)
-    const diffDays = Math.round((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-    const dateLabel = diffDays === 1 ? 'Mañana' : DAYS_ES[date.getDay()]
-
-    return {
-      id: r.id,
-      date: dateLabel,
-      isoDate: r.reservation_date,
-      time: r.reservation_time,
-      name: r.customer_name,
-      party: r.party_size,
-      local: businessDisplayName(r.business_id),
-      status: r.status,
-    }
-  })
+  const from = tomorrow.toLocaleDateString('en-CA')
+  const to = ceiling.toLocaleDateString('en-CA')
+  const res = await fetch(`/api/reservations/upcoming?from=${from}&to=${to}`)
+  if (!res.ok) throw new Error('Error al cargar reservas próximas')
+  return res.json()
 }
 
 export async function updateReservationStatus(id: string, status: ReservationStatus): Promise<void> {
-  const supabase = createClient()
-  const update: Record<string, unknown> = { status }
-  if (status === 'checked_in') {
-    update.check_in_time = new Date().toISOString()
-  }
-  const { error } = await supabase.from('reservations').update(update).eq('id', id)
-  if (error) throw error
+  const res = await fetch('/api/reservations/update-status', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, status }),
+  })
+  if (!res.ok) throw new Error('Error al actualizar estado')
 }
