@@ -102,7 +102,6 @@ export default async function LocalePage({ params }: Props) {
 
   return (
     <>
-<>
       <Header />
 
       <main className="pt-20 min-h-screen bg-ivory">
