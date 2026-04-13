@@ -320,7 +320,7 @@ export function LoyaltyConfigView() {
                     rule.enabled ? 'bg-brand-600' : 'bg-warm-300'
                   }`}
                 >
-                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                  <span className={`absolute top-0.5 left-0 w-4 h-4 rounded-full bg-white transition-transform ${
                     rule.enabled ? 'translate-x-5' : 'translate-x-0.5'
                   }`} />
                 </button>
