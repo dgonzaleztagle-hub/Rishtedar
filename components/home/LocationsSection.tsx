@@ -108,12 +108,14 @@ export function LocationsSection() {
 
                 {/* CTA */}
                 <div className="shrink-0 flex items-center gap-4 md:gap-6">
-                  <button
-                    onClick={e => { e.preventDefault(); window.location.href = '/reservar?local=' + loc.id }}
-                    className="hidden md:block text-[10px] tracking-widest uppercase text-ivory bg-brand-700 hover:bg-brand-600 px-5 py-2.5 transition-colors"
-                  >
-                    Reservar
-                  </button>
+                  {loc.country === 'CL' && (
+                    <button
+                      onClick={e => { e.preventDefault(); window.location.href = '/reservar?local=' + loc.id }}
+                      className="hidden md:block text-[10px] tracking-widest uppercase text-ivory bg-brand-700 hover:bg-brand-600 px-5 py-2.5 transition-colors"
+                    >
+                      Reservar
+                    </button>
+                  )}
                   <ArrowRight
                     size={16}
                     className="text-warm-300 group-hover:text-brand-700 group-hover:translate-x-1 transition-all"

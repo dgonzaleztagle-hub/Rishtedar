@@ -249,13 +249,6 @@ export function Header() {
                 <Search size={18} />
               </Link>
               <Link
-                href="/login"
-                className="hidden md:flex p-2 text-warm-300 hover:text-gold-400 transition-colors"
-                aria-label="Mi cuenta"
-              >
-                <User size={18} />
-              </Link>
-              <Link
                 href="/app"
                 className="hidden md:flex items-center gap-1.5 text-warm-300 hover:text-gold-400 transition-colors text-xs tracking-widest uppercase font-medium"
                 aria-label="Mi Circle"

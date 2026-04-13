@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   MapPin, ShoppingBag, Tag, ChevronDown, CheckCircle2,
@@ -70,6 +70,9 @@ export function OrderFlow({ initialLocal, initialItem }: { initialLocal?: string
   const [showFilters, setShowFilters]         = useState(false)
   const [activeDietary, setActiveDietary]     = useState<string[]>([])
 
+  // Tracks item to open after local is confirmed (when navigating from featured dishes)
+  const pendingItemRef = useRef<string | null>(initialItem || null)
+
   const { location: nearest, distance } = useNearestLocation()
   const cartItems  = useCartStore(s => s.items)
   const itemCount  = useCartStore(s => s.itemCount())
@@ -83,6 +86,31 @@ export function OrderFlow({ initialLocal, initialItem }: { initialLocal?: string
     if (nearest && !modalPickerId && !confirmedLocal) setModalPickerId(nearest.id)
   }, [nearest, modalPickerId, confirmedLocal])
 
+  // On mount: restore saved local from localStorage (skip if URL param already set)
+  useEffect(() => {
+    if (validInitial) {
+      // URL param wins — open pending item immediately
+      if (pendingItemRef.current) {
+        const item = DEMO_MENU_ITEMS.find(i => i.id === pendingItemRef.current!)
+        if (item) setSelectedItem(item)
+        pendingItemRef.current = null
+      }
+      return
+    }
+    const saved = localStorage.getItem('rishtedar-selected-local')
+    if (saved && activeLocations.some(l => l.id === saved)) {
+      setConfirmedLocal(saved)
+      setBusinessId(saved)
+      setShowModal(false)
+      // Also open pending item now that we have a local
+      if (pendingItemRef.current) {
+        const item = DEMO_MENU_ITEMS.find(i => i.id === pendingItemRef.current!)
+        if (item) setSelectedItem(item)
+        pendingItemRef.current = null
+      }
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const activeLocalId   = confirmedLocal || nearest?.id || 'providencia'
   const activeLocalData = activeLocations.find(l => l.id === activeLocalId)
   const { promotion }   = useActivePromotion(activeLocalId)
@@ -91,18 +119,17 @@ export function OrderFlow({ initialLocal, initialItem }: { initialLocal?: string
     setPromotion(promotion ?? null)
   }, [promotion, setPromotion])
 
-  // Open item detail on mount if initialItem provided
-  useEffect(() => {
-    if (initialItem) {
-      const item = DEMO_MENU_ITEMS.find(i => i.id === initialItem)
-      if (item) setSelectedItem(item)
-    }
-  }, [initialItem])
-
   function confirmLocal(id: string) {
     setConfirmedLocal(id)
     setBusinessId(id)
     setShowModal(false)
+    localStorage.setItem('rishtedar-selected-local', id)
+    // Open item that was requested before local was selected
+    if (pendingItemRef.current) {
+      const item = DEMO_MENU_ITEMS.find(i => i.id === pendingItemRef.current!)
+      if (item) setSelectedItem(item)
+      pendingItemRef.current = null
+    }
   }
 
   function toggleDietary(id: string) {

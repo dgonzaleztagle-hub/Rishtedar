@@ -44,6 +44,11 @@ export function ReservationForm({ initialLocal }: { initialLocal?: string }) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
+  function goToStep(s: Step) {
+    setStep(s)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   // Calendar helpers
   const today = startOfDay(new Date())
 
@@ -290,7 +295,7 @@ export function ReservationForm({ initialLocal }: { initialLocal?: string }) {
             )}
 
             <button
-              onClick={() => setStep(2)}
+              onClick={() => goToStep(2)}
               disabled={!selectedLocal || !selectedDate}
               className="w-full bg-brand-700 hover:bg-brand-800 disabled:opacity-40 disabled:cursor-not-allowed text-ivory py-4 text-xs tracking-widest uppercase font-medium transition-colors"
             >
@@ -308,11 +313,17 @@ export function ReservationForm({ initialLocal }: { initialLocal?: string }) {
             exit={{ opacity: 0, x: -20 }}
             className="space-y-8"
           >
+            {/* Selection summary from step 1 */}
+            <div className="flex items-center gap-3 bg-warm-50 border border-warm-200 px-4 py-3 text-xs text-warm-500">
+              <MapPin size={12} className="text-brand-500 shrink-0" />
+              <span className="font-medium text-warm-700">{selectedLocalData?.name.replace('Rishtedar ', '')}</span>
+              <span className="text-warm-300">·</span>
+              <span className="capitalize">{selectedDate ? format(selectedDate, "EEEE d 'de' MMMM", { locale: es }) : ''}</span>
+              <button onClick={() => goToStep(1)} className="ml-auto text-brand-600 hover:text-brand-800 transition-colors">Cambiar</button>
+            </div>
             <div>
               <h2 className="font-display text-3xl italic text-warm-950 mb-1">¿A qué hora?</h2>
-              <p className="text-warm-400 text-sm mb-5">
-                {selectedDate ? format(selectedDate, "EEEE d 'de' MMMM", { locale: es }) : ''}
-              </p>
+              <p className="text-warm-400 text-sm mb-5"></p>
               <div className="grid grid-cols-4 md:grid-cols-7 gap-2">
                 {TIME_SLOTS.map(time => (
                   <button
@@ -355,13 +366,13 @@ export function ReservationForm({ initialLocal }: { initialLocal?: string }) {
 
             <div className="flex gap-3">
               <button
-                onClick={() => setStep(1)}
+                onClick={() => goToStep(1)}
                 className="flex items-center gap-1.5 border border-warm-300 text-warm-600 px-6 py-4 text-xs tracking-widest uppercase font-medium hover:border-warm-400 transition-colors"
               >
                 <ChevronLeft size={13} /> Atrás
               </button>
               <button
-                onClick={() => setStep(3)}
+                onClick={() => goToStep(3)}
                 disabled={!selectedTime}
                 className="flex-1 bg-brand-700 hover:bg-brand-800 disabled:opacity-40 disabled:cursor-not-allowed text-ivory py-4 text-xs tracking-widest uppercase font-medium transition-colors"
               >
@@ -465,7 +476,7 @@ export function ReservationForm({ initialLocal }: { initialLocal?: string }) {
 
             <div className="flex gap-3">
               <button
-                onClick={() => setStep(2)}
+                onClick={() => goToStep(2)}
                 className="flex items-center gap-1.5 border border-warm-300 text-warm-600 px-6 py-4 text-xs tracking-widest uppercase font-medium hover:border-warm-400 transition-colors"
               >
                 <ChevronLeft size={13} /> Atrás

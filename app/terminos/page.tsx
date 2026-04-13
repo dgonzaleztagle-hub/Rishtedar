@@ -13,6 +13,12 @@ export default function TerminosPage() {
       <Header />
       <main className="pt-20 min-h-screen bg-ivory">
         <div className="container mx-auto px-6 py-16 max-w-3xl">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-warm-500 hover:text-brand-700 text-sm mb-8 transition-colors"
+          >
+            ← Volver al inicio
+          </Link>
           <p className="text-brand-600 text-[10px] tracking-[0.3em] uppercase mb-3">Legal</p>
           <h1 className="font-display text-4xl sm:text-5xl italic text-warm-950 mb-8">
             Términos y Condiciones

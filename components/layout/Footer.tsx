@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Share2, ExternalLink, UtensilsCrossed, MapPin, Phone, Mail } from 'lucide-react'
+import { UtensilsCrossed, MapPin, Phone, Mail } from 'lucide-react'
 import { LOCATIONS } from '@/lib/locations'
 
 export function Footer() {
@@ -8,7 +8,7 @@ export function Footer() {
 
   return (
     <footer className="bg-warm-950 text-warm-300 border-t border-warm-800">
-      {/* Newsletter strip */}
+      {/* Newsletter strip — desactivado temporalmente, conectar con Resend antes de publicar
       <div className="border-b border-warm-800 bg-brand-900/30">
         <div className="container mx-auto px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
@@ -32,6 +32,7 @@ export function Footer() {
           </form>
         </div>
       </div>
+      */}
 
       {/* Main footer */}
       <div className="container mx-auto px-6 py-14 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
@@ -55,7 +56,12 @@ export function Footer() {
               className="w-9 h-9 border border-warm-700 flex items-center justify-center hover:border-gold-600 hover:text-gold-400 transition-all"
               aria-label="Instagram"
             >
-              <Share2 size={14} />
+              {/* Instagram icon */}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                <circle cx="12" cy="12" r="4"/>
+                <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+              </svg>
             </a>
             <a
               href="https://facebook.com/rishtedar"
@@ -64,7 +70,10 @@ export function Footer() {
               className="w-9 h-9 border border-warm-700 flex items-center justify-center hover:border-gold-600 hover:text-gold-400 transition-all"
               aria-label="Facebook"
             >
-              <ExternalLink size={14} />
+              {/* Facebook icon */}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/>
+              </svg>
             </a>
           </div>
         </div>

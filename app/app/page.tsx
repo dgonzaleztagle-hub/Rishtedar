@@ -187,8 +187,15 @@ export default function AppPage() {
   return (
     <div className="min-h-screen max-w-sm mx-auto">
 
+      {/* Back to site — visible on web, unobtrusive in PWA */}
+      <div className="px-4 pt-4 pb-0">
+        <Link href="/" className="inline-flex items-center gap-1 text-warm-700 hover:text-warm-400 text-[10px] tracking-wider uppercase transition-colors">
+          ← Rishtedar.cl
+        </Link>
+      </div>
+
       {/* Header */}
-      <div className="px-4 pt-8 pb-4 flex items-center justify-between">
+      <div className="px-4 pt-4 pb-4 flex items-center justify-between">
         <div>
           <p className="text-warm-500 text-[10px] tracking-widest uppercase">Rishtedar Circle</p>
           <h1 className="font-display text-2xl italic text-ivory leading-tight">
