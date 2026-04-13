@@ -19,27 +19,32 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; icon: typeof Clock; co
 const DEMO_ORDERS: Partial<Order>[] = [
   {
     id: 'ord-001', order_number: 'RSH-ABC123', customer_name: 'María González',
-    order_type: 'delivery', final_price: 27800, status: 'preparing',
+    order_type: 'delivery', delivery_address: 'Av. Providencia 1234, Depto 5B',
+    final_price: 27800, status: 'preparing', payment_status: 'paid',
     items_count: 2, created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
   },
   {
     id: 'ord-002', order_number: 'RSH-DEF456', customer_name: 'Carlos Rodríguez',
-    order_type: 'dine_in', final_price: 43500, status: 'ready',
+    order_type: 'takeaway', delivery_address: null,
+    final_price: 43500, status: 'ready', payment_status: 'paid',
     items_count: 4, created_at: new Date(Date.now() - 32 * 60 * 1000).toISOString(),
   },
   {
     id: 'ord-003', order_number: 'RSH-GHI789', customer_name: 'Ana Martínez',
-    order_type: 'delivery', final_price: 15900, status: 'confirmed',
+    order_type: 'delivery', delivery_address: 'Los Leones 890, Las Condes',
+    final_price: 15900, status: 'confirmed', payment_status: 'paid',
     items_count: 1, created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
   },
   {
     id: 'ord-004', order_number: 'RSH-JKL012', customer_name: 'Roberto Pérez',
-    order_type: 'takeaway', final_price: 22300, status: 'pending',
+    order_type: 'takeaway', delivery_address: null,
+    final_price: 22300, status: 'pending', payment_status: 'pending',
     items_count: 2, created_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
   },
   {
-    id: 'ord-005', order_number: 'RSH-MNO345', customer_name: 'Sofia Herrera',
-    order_type: 'dine_in', final_price: 58700, status: 'completed',
+    id: 'ord-005', order_number: 'RSH-MNO345', customer_name: 'Sofía Herrera',
+    order_type: 'delivery', delivery_address: 'Irarrázaval 3200, Ñuñoa',
+    final_price: 58700, status: 'completed', payment_status: 'paid',
     items_count: 5, created_at: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
   },
 ]
@@ -53,8 +58,7 @@ function timeAgo(isoString: string): string {
 
 const ORDER_TYPE_LABEL: Record<string, string> = {
   delivery: 'Delivery',
-  dine_in: 'Local',
-  takeaway: 'Retiro',
+  takeaway: 'Retiro en local',
 }
 
 export function LiveOrdersFeed() {
@@ -132,7 +136,15 @@ export function LiveOrdersFeed() {
                   <Icon size={10} />
                   {cfg.label}
                 </div>
-                <span className="text-warm-400 text-xs">{ORDER_TYPE_LABEL[order.order_type!]} · {order.items_count} platos</span>
+                <span className="text-warm-400 text-xs">
+                  {ORDER_TYPE_LABEL[order.order_type!]} · {order.items_count} platos
+                  {order.order_type === 'delivery' && order.delivery_address && (
+                    <span className="ml-1 text-warm-300">· {order.delivery_address}</span>
+                  )}
+                </span>
+                {order.payment_status === 'pending' && (
+                  <span className="text-amber-500 text-[10px] font-medium">Pago pendiente</span>
+                )}
                 <span className="hidden sm:inline text-warm-300 text-xs">{order.order_number}</span>
                 {status === 'pending' && (
                   <button onClick={() => updateStatus(order.id!, 'confirmed')} className="ml-auto shrink-0 bg-brand-700 hover:bg-brand-800 text-ivory text-xs px-3 py-1 transition-colors">Confirmar</button>
