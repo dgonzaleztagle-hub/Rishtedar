@@ -245,9 +245,10 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
 
   const isPortraitViewport = viewportSize.height > viewportSize.width
   const isCompactViewport = viewportSize.width < 980 || viewportSize.height < 760
+  const useCompactFullscreenChrome = isFullscreen && isCompactViewport
 
-  const stagePaddingX = isFullscreen ? 10 : 0
-  const stagePaddingY = isFullscreen ? (isCompactViewport ? 10 : 14) : 0
+  const stagePaddingX = isFullscreen ? (useCompactFullscreenChrome ? 4 : 10) : 0
+  const stagePaddingY = isFullscreen ? (useCompactFullscreenChrome ? 4 : isCompactViewport ? 10 : 14) : 0
   const availableStageWidth = Math.max(280, stageSize.width - stagePaddingX * 2)
   const availableStageHeight = Math.max(180, stageSize.height - stagePaddingY * 2)
   const widthLimitedHeight = availableStageWidth * (H / W)
@@ -801,6 +802,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
       }
     >
       <div className="flex h-full min-h-0 flex-col">
+      {!useCompactFullscreenChrome && (
       <div className={`flex flex-wrap items-center justify-between gap-3 px-1 ${isFullscreen ? 'mb-2' : 'mb-3'}`}>
         <div>
           <p className="text-[10px] uppercase tracking-[0.35em] text-[#f1b865]">Minijuego semanal</p>
@@ -825,6 +827,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
           </button>
         </div>
       </div>
+      )}
 
       <div
         ref={stageFrameRef}
@@ -833,7 +836,32 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
         }`}
       >
         <audio ref={backgroundMusicRef} src="/musica%20juego.mp3" preload="auto" />
-        <div className="flex h-full w-full items-center justify-center px-2 py-2">
+        {useCompactFullscreenChrome && (
+          <>
+            <div className="pointer-events-none absolute left-3 top-3 z-20 rounded-full border border-[#6a3c22] bg-[rgba(18,13,10,0.8)] px-3 py-1 text-[9px] uppercase tracking-[0.26em] text-[#f1b865] backdrop-blur-sm">
+              El Festín
+            </div>
+            <div className="absolute right-3 top-3 z-20 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMuted((current) => !current)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#6a3c22] bg-[rgba(29,19,14,0.92)] px-2.5 py-1.5 text-[10px] uppercase tracking-[0.18em] text-[#f6ddbd] backdrop-blur-sm transition-colors hover:border-[#c9952a]"
+              >
+                {muted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+                <span className="hidden min-[420px]:inline">{muted ? 'Mute' : 'Audio'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#6a3c22] bg-[rgba(29,19,14,0.92)] px-2.5 py-1.5 text-[10px] uppercase tracking-[0.18em] text-[#f6ddbd] backdrop-blur-sm transition-colors hover:border-[#c9952a]"
+              >
+                <Expand size={12} />
+                <span className="hidden min-[420px]:inline">{isFullscreen ? 'Salir' : 'Full'}</span>
+              </button>
+            </div>
+          </>
+        )}
+        <div className={`flex h-full w-full items-center justify-center ${useCompactFullscreenChrome ? 'px-1 py-1' : 'px-2 py-2'}`}>
         <canvas
           ref={canvasRef}
           width={W}
@@ -875,25 +903,27 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 flex items-center justify-center bg-[rgba(9,6,7,0.84)] p-6"
+              className={`absolute inset-0 flex items-center justify-center bg-[rgba(9,6,7,0.84)] ${useCompactFullscreenChrome ? 'overflow-y-auto p-3' : 'p-6'}`}
             >
-              <div className="max-w-xl rounded-[28px] border border-[#8b5b2f] bg-[linear-gradient(180deg,rgba(44,24,17,0.98),rgba(20,11,9,0.98))] px-7 py-8 text-center shadow-[0_18px_70px_rgba(0,0,0,0.45)]">
-                <p className="mb-2 text-[10px] uppercase tracking-[0.35em] text-[#f1b865]">Landscape · Touch-first · Highscore</p>
-                <h2 className="font-display text-5xl italic text-[#fff5e8]">Arma y sirve</h2>
-                <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-[#f4d9bb]">
+              <div className={`w-full rounded-[28px] border border-[#8b5b2f] bg-[linear-gradient(180deg,rgba(44,24,17,0.98),rgba(20,11,9,0.98))] text-center shadow-[0_18px_70px_rgba(0,0,0,0.45)] ${
+                useCompactFullscreenChrome ? 'max-w-lg px-4 py-5' : 'max-w-xl px-7 py-8'
+              }`}>
+                <p className={`text-[#f1b865] ${useCompactFullscreenChrome ? 'mb-1 text-[9px] tracking-[0.28em]' : 'mb-2 text-[10px] tracking-[0.35em]'} uppercase`}>Landscape · Touch-first · Highscore</p>
+                <h2 className={`font-display italic text-[#fff5e8] ${useCompactFullscreenChrome ? 'text-3xl' : 'text-5xl'}`}>Arma y sirve</h2>
+                <p className={`mx-auto max-w-lg leading-relaxed text-[#f4d9bb] ${useCompactFullscreenChrome ? 'mt-2 text-xs' : 'mt-3 text-sm'}`}>
                   Toca ingredientes, completa platos reales de cocina india y sirve la mesa correcta antes de que el servicio te sobrepase.
                 </p>
-                <div className="mt-6 grid gap-3 text-left text-sm text-[#f4d9bb] md:grid-cols-2">
-                  <div className="rounded-2xl border border-[#714126] bg-[rgba(255,255,255,0.03)] p-4">
-                    <p className="mb-2 text-[10px] uppercase tracking-[0.28em] text-[#f1b865]">Loop</p>
+                <div className={`grid text-left text-[#f4d9bb] ${useCompactFullscreenChrome ? 'mt-4 gap-2 text-xs md:grid-cols-2' : 'mt-6 gap-3 text-sm md:grid-cols-2'}`}>
+                  <div className={`rounded-2xl border border-[#714126] bg-[rgba(255,255,255,0.03)] ${useCompactFullscreenChrome ? 'p-3' : 'p-4'}`}>
+                    <p className={`text-[#f1b865] uppercase ${useCompactFullscreenChrome ? 'mb-1 text-[9px] tracking-[0.24em]' : 'mb-2 text-[10px] tracking-[0.28em]'}`}>Loop</p>
                     <p>Toca ingredientes, arma el plato y toca la mesa para servir.</p>
                   </div>
-                  <div className="rounded-2xl border border-[#714126] bg-[rgba(255,255,255,0.03)] p-4">
-                    <p className="mb-2 text-[10px] uppercase tracking-[0.28em] text-[#f1b865]">Presión</p>
+                  <div className={`rounded-2xl border border-[#714126] bg-[rgba(255,255,255,0.03)] ${useCompactFullscreenChrome ? 'p-3' : 'p-4'}`}>
+                    <p className={`text-[#f1b865] uppercase ${useCompactFullscreenChrome ? 'mb-1 text-[9px] tracking-[0.24em]' : 'mb-2 text-[10px] tracking-[0.28em]'}`}>Presión</p>
                     <p>Más clientes, menos paciencia y recetas más exigentes a medida que sube la run.</p>
                   </div>
                 </div>
-                <p className="mt-6 text-xs text-[#c7a985]">
+                <p className={`text-[#c7a985] ${useCompactFullscreenChrome ? 'mt-4 text-[11px]' : 'mt-6 text-xs'}`}>
                   {tokensLeft > 0
                     ? `${tokensLeft} intento${tokensLeft !== 1 ? 's' : ''} rankeado${tokensLeft !== 1 ? 's' : ''} disponibles`
                     : 'Modo práctica activo: los intentos rankeados ya se usaron esta semana'}
@@ -901,7 +931,11 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
                 <button
                   type="button"
                   onClick={startGame}
-                  className="mt-6 rounded-full bg-[#c9952a] px-8 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-[#25140c] transition-colors hover:bg-[#e0ae44]"
+                  className={`rounded-full bg-[#c9952a] font-semibold uppercase text-[#25140c] transition-colors hover:bg-[#e0ae44] ${
+                    useCompactFullscreenChrome
+                      ? 'mt-4 px-6 py-2.5 text-[11px] tracking-[0.22em]'
+                      : 'mt-6 px-8 py-3 text-xs tracking-[0.3em]'
+                  }`}
                 >
                   Jugar ahora
                 </button>
@@ -1121,7 +1155,7 @@ function drawTables(ctx: CanvasRenderingContext2D, state: RunState) {
       ctx.arc(chipX, bottomY, 11, 0, Math.PI * 2)
       ctx.stroke()
       ctx.fillStyle = ingredient.accent
-      ctx.font = 'bold 8px sans-serif'
+      ctx.font = 'bold 9px sans-serif'
       ctx.textAlign = 'center'
       ctx.fillText(ingredient.badgeLabel, chipX, bottomY + 3)
     })
@@ -1402,7 +1436,7 @@ function drawStation(ctx: CanvasRenderingContext2D, state: RunState) {
     ctx.arc(x, y, 9, 0, Math.PI * 2)
     ctx.stroke()
     ctx.fillStyle = ingredient.accent
-    ctx.font = 'bold 7px sans-serif'
+    ctx.font = 'bold 8px sans-serif'
     ctx.fillText(ingredient.badgeLabel, x, y + 3)
   })
 
