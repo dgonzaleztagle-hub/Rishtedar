@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Crown, Gamepad2, ShoppingBag } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getWeekStart } from '@/lib/services/gameService'
+import { normalizeChileanPhone } from '@/lib/utils/phone'
 import { WelcomeScreen } from '@/components/app/WelcomeScreen'
 import { IdentityForm }  from '@/components/app/IdentityForm'
 import { TierCard }      from '@/components/app/TierCard'
@@ -60,6 +61,8 @@ export default function AppPage() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [form,           setForm]           = useState({ name: '', phone: '', favoriteLocal: '' })
   const [tokensLeft,     setTokensLeft]     = useState(3)
+  const [formError,      setFormError]      = useState<string | null>(null)
+  const [savingIdentity, setSavingIdentity] = useState(false)
 
   // ── Fetch loyalty ────────────────────────────────────────────────────────────
   const fetchLoyalty = useCallback(async (phone: string, businessId: string) => {
@@ -124,31 +127,79 @@ export default function AppPage() {
   // ── Save identity ────────────────────────────────────────────────────────────
   async function saveIdentity() {
     if (!form.name || !form.phone) return
-    const id: ClientIdentity = {
-      name:          form.name,
-      phone:         form.phone,
-      favoriteLocal: form.favoriteLocal || 'providencia',
+
+    // 1. Validate + normalize Chilean phone
+    const normalizedPhone = normalizeChileanPhone(form.phone)
+    if (!normalizedPhone) {
+      setFormError('Teléfono inválido. Formato esperado: +56 9 XXXX XXXX')
+      return
     }
-    localStorage.setItem('rishtedar_client', JSON.stringify(id))
+    setFormError(null)
+
+    const favoriteLocal = form.favoriteLocal || 'providencia'
+    setSavingIdentity(true)
 
     try {
       const supabase = createClient()
-      await supabase.from('loyalty_points').upsert(
-        {
-          customer_phone: id.phone,
-          customer_name:  id.name,
-          business_id:    id.favoriteLocal,
-          tier:           'bronze',
-        },
-        { onConflict: 'customer_phone,business_id', ignoreDuplicates: true }
-      )
-    } catch { /* silent — saved locally either way */ }
 
-    setIdentity(id)
-    setTokensLeft(getTokensLeft(id.phone, id.favoriteLocal))
-    setShowOnboarding(false)
-    fetchLoyalty(id.phone, id.favoriteLocal)
-    fetchLeaderboard(id.favoriteLocal, id.phone)
+      // 2. Check for existing record at this branch (duplicate prevention)
+      const { data: existing } = await supabase
+        .from('loyalty_points')
+        .select('customer_name, business_id, points_current, tier')
+        .eq('customer_phone', normalizedPhone)
+        .eq('business_id', favoriteLocal)
+        .maybeSingle()
+
+      if (existing) {
+        // Already registered — log them in with existing data, no new record needed
+        const id: ClientIdentity = {
+          name:          existing.customer_name ?? form.name,
+          phone:         normalizedPhone,
+          favoriteLocal,
+        }
+        localStorage.setItem('rishtedar_client', JSON.stringify(id))
+        setIdentity(id)
+        setTokensLeft(getTokensLeft(normalizedPhone, favoriteLocal))
+        setShowOnboarding(false)
+        fetchLoyalty(normalizedPhone, favoriteLocal)
+        fetchLeaderboard(favoriteLocal, normalizedPhone)
+        return
+      }
+
+      // 3. New registration — insert (unique constraint guards race conditions)
+      const id: ClientIdentity = { name: form.name, phone: normalizedPhone, favoriteLocal }
+
+      const { error: insertError } = await supabase
+        .from('loyalty_points')
+        .insert({
+          customer_phone: normalizedPhone,
+          customer_name:  form.name,
+          business_id:    favoriteLocal,
+          tier:           'bronze',
+        })
+
+      if (insertError) {
+        // Unique constraint violation → already exists (race condition edge case)
+        if (insertError.code === '23505') {
+          // Someone registered at the exact same moment — just log them in
+        } else {
+          throw insertError
+        }
+      }
+
+      localStorage.setItem('rishtedar_client', JSON.stringify(id))
+      setIdentity(id)
+      setTokensLeft(getTokensLeft(normalizedPhone, favoriteLocal))
+      setShowOnboarding(false)
+      fetchLoyalty(normalizedPhone, favoriteLocal)
+      fetchLeaderboard(favoriteLocal, normalizedPhone)
+
+    } catch (err) {
+      console.error('[saveIdentity]', err)
+      setFormError('Error al registrar. Intenta de nuevo.')
+    } finally {
+      setSavingIdentity(false)
+    }
   }
 
   // ── Game end ─────────────────────────────────────────────────────────────────
@@ -179,13 +230,21 @@ export default function AppPage() {
   }
 
   if (showOnboarding) {
-    return <IdentityForm form={form} onChange={setForm} onSubmit={saveIdentity} />
+    return (
+      <IdentityForm
+        form={form}
+        onChange={v => { setForm(v); setFormError(null) }}
+        onSubmit={saveIdentity}
+        error={formError}
+        loading={savingIdentity}
+      />
+    )
   }
 
   const resolvedLoyalty = loyalty ?? { points: 0, tier: 'bronze' as const, totalVisits: 0 }
 
   return (
-    <div className="min-h-screen max-w-sm mx-auto">
+    <div className={`min-h-screen mx-auto ${tab === 'game' ? 'max-w-6xl' : 'max-w-sm'}`}>
 
       {/* Back to site — visible on web, unobtrusive in PWA */}
       <div className="px-4 pt-4 pb-0">

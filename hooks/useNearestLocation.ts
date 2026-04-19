@@ -13,20 +13,35 @@ interface NearestLocationResult {
 }
 
 export function useNearestLocation(): NearestLocationResult {
-  const [result, setResult] = useState<NearestLocationResult>(() => {
-    if (typeof window === 'undefined' || !navigator.geolocation) {
-      return {
-        location: getLocationBySlug('providencia') ?? LOCATIONS[0],
-        distance: null,
-        loading: false,
-        error: null,
-      }
-    }
-    return { location: null, distance: null, loading: true, error: null }
+  const [result, setResult] = useState<NearestLocationResult>({
+    location: null,
+    distance: null,
+    loading: true,
+    error: null,
   })
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !navigator.geolocation) return
+    if (typeof window === 'undefined') return
+
+    if (!navigator.geolocation) {
+      const timer = window.setTimeout(() => {
+        setResult({
+          location: getLocationBySlug('providencia') ?? LOCATIONS.find(l => l.is_active) ?? LOCATIONS[0],
+          distance: null,
+          loading: false,
+          error: null,
+        })
+      }, 0)
+
+      return () => window.clearTimeout(timer)
+    }
+
+    const fallbackLocation = LOCATIONS.find(l => l.is_active) ?? LOCATIONS[0]
+    let cancelled = false
+
+    const updateResult = (next: NearestLocationResult) => {
+      if (!cancelled) setResult(next)
+    }
 
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
@@ -44,7 +59,7 @@ export function useNearestLocation(): NearestLocationResult {
           }
         }
 
-        setResult({
+        updateResult({
           location: nearest,
           distance: minDistance,
           loading: false,
@@ -53,8 +68,8 @@ export function useNearestLocation(): NearestLocationResult {
       },
       () => {
         // Denied or unavailable — default to first active
-        setResult({
-          location: LOCATIONS.find(l => l.is_active) ?? LOCATIONS[0],
+        updateResult({
+          location: fallbackLocation,
           distance: null,
           loading: false,
           error: null,
@@ -62,6 +77,10 @@ export function useNearestLocation(): NearestLocationResult {
       },
       { timeout: 8000, maximumAge: 300_000 }
     )
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   return result
