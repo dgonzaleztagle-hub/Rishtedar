@@ -226,6 +226,7 @@ function blendAlpha(hex: string, alpha: string) {
 export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const stageFrameRef = useRef<HTMLDivElement>(null)
   const audioCtx = useRef<AudioContext | null>(null)
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null)
   const stateRef = useRef<RunState>(initialRunState())
@@ -239,6 +240,20 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   })
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [muted, setMuted] = useState(false)
+  const [viewportSize, setViewportSize] = useState({ width: W, height: H })
+  const [stageSize, setStageSize] = useState({ width: W, height: H })
+
+  const isPortraitViewport = viewportSize.height > viewportSize.width
+  const isCompactViewport = viewportSize.width < 980 || viewportSize.height < 760
+
+  const stagePaddingX = isFullscreen ? 10 : 0
+  const stagePaddingY = isFullscreen ? (isCompactViewport ? 10 : 14) : 0
+  const availableStageWidth = Math.max(280, stageSize.width - stagePaddingX * 2)
+  const availableStageHeight = Math.max(180, stageSize.height - stagePaddingY * 2)
+  const widthLimitedHeight = availableStageWidth * (H / W)
+  const canvasDisplayHeight = Math.min(availableStageHeight, widthLimitedHeight)
+  const canvasDisplayWidth = canvasDisplayHeight * (W / H)
+  const showRotateHint = isFullscreen && isPortraitViewport
 
   const setGamePhase = useCallback((nextPhase: Phase) => {
     stateRef.current.phase = nextPhase
@@ -528,10 +543,23 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
     if (!wrapperRef.current) return
 
     try {
+      const orientationApi = screen.orientation as ScreenOrientation & {
+        lock?: (orientation: 'any' | 'natural' | 'landscape' | 'portrait' | 'portrait-primary' | 'portrait-secondary' | 'landscape-primary' | 'landscape-secondary') => Promise<void>
+        unlock?: () => void
+      }
+
       if (document.fullscreenElement) {
+        if (typeof orientationApi.unlock === 'function') {
+          orientationApi.unlock()
+        }
         await document.exitFullscreen()
       } else {
         await wrapperRef.current.requestFullscreen()
+        if (typeof orientationApi.lock === 'function') {
+          await orientationApi.lock('landscape').catch(() => {
+            // iOS/Safari and some Android browsers ignore or reject orientation lock.
+          })
+        }
       }
     } catch {
       // Fullscreen is optional; browsers may reject it outside explicit gestures.
@@ -546,6 +574,47 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
     document.addEventListener('fullscreenchange', updateFullscreen)
     return () => document.removeEventListener('fullscreenchange', updateFullscreen)
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const updateViewport = () => {
+      const vv = window.visualViewport
+      setViewportSize({
+        width: Math.round(vv?.width ?? window.innerWidth),
+        height: Math.round(vv?.height ?? window.innerHeight),
+      })
+    }
+
+    updateViewport()
+    window.addEventListener('resize', updateViewport)
+    window.visualViewport?.addEventListener('resize', updateViewport)
+    window.visualViewport?.addEventListener('scroll', updateViewport)
+
+    return () => {
+      window.removeEventListener('resize', updateViewport)
+      window.visualViewport?.removeEventListener('resize', updateViewport)
+      window.visualViewport?.removeEventListener('scroll', updateViewport)
+    }
+  }, [])
+
+  useEffect(() => {
+    const stage = stageFrameRef.current
+    if (!stage || typeof ResizeObserver === 'undefined') return
+
+    const updateStage = () => {
+      const rect = stage.getBoundingClientRect()
+      setStageSize({
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      })
+    }
+
+    updateStage()
+    const observer = new ResizeObserver(updateStage)
+    observer.observe(stage)
+    return () => observer.disconnect()
+  }, [isFullscreen])
 
   useEffect(() => {
     const audio = backgroundMusicRef.current
@@ -712,11 +781,30 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   }, [handleCanvasTap, playSound, setGamePhase, spawnCustomer, spawnFloater])
 
   return (
-    <div ref={wrapperRef} className="relative w-full rounded-[28px] border border-[#6a3c22] bg-[#120d0a] p-3 shadow-[0_20px_80px_rgba(0,0,0,0.45)]">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
+    <div
+      ref={wrapperRef}
+      className={`relative w-full bg-[#120d0a] shadow-[0_20px_80px_rgba(0,0,0,0.45)] ${
+        isFullscreen
+          ? 'fixed inset-0 z-50 overflow-hidden border-0 rounded-none'
+          : 'rounded-[28px] border border-[#6a3c22] p-3'
+      }`}
+      style={
+        isFullscreen
+          ? {
+              height: viewportSize.height,
+              paddingTop: 'max(10px, env(safe-area-inset-top))',
+              paddingRight: 'max(10px, env(safe-area-inset-right))',
+              paddingBottom: 'max(10px, env(safe-area-inset-bottom))',
+              paddingLeft: 'max(10px, env(safe-area-inset-left))',
+            }
+          : undefined
+      }
+    >
+      <div className="flex h-full min-h-0 flex-col">
+      <div className={`flex flex-wrap items-center justify-between gap-3 px-1 ${isFullscreen ? 'mb-2' : 'mb-3'}`}>
         <div>
           <p className="text-[10px] uppercase tracking-[0.35em] text-[#f1b865]">Minijuego semanal</p>
-          <h3 className="font-display text-3xl italic text-[#fff5e8]">El Festín de Especias</h3>
+          <h3 className={`font-display italic text-[#fff5e8] ${isFullscreen && isCompactViewport ? 'text-2xl' : 'text-3xl'}`}>El Festín de Especias</h3>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -738,14 +826,47 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-[24px] border border-[#8b5b2f] bg-[#0b0807]">
+      <div
+        ref={stageFrameRef}
+        className={`relative min-h-0 flex-1 overflow-hidden bg-[#0b0807] ${
+          isFullscreen ? 'rounded-[22px] border border-[#8b5b2f]' : 'rounded-[24px] border border-[#8b5b2f]'
+        }`}
+      >
         <audio ref={backgroundMusicRef} src="/musica%20juego.mp3" preload="auto" />
+        <div className="flex h-full w-full items-center justify-center px-2 py-2">
         <canvas
           ref={canvasRef}
           width={W}
           height={H}
-          className="block aspect-[16/9] w-full touch-none bg-[#0b0807]"
+          className="block touch-none bg-[#0b0807]"
+          style={{
+            width: canvasDisplayWidth,
+            height: canvasDisplayHeight,
+            maxWidth: '100%',
+            maxHeight: '100%',
+          }}
         />
+        </div>
+
+        <AnimatePresence>
+          {showRotateHint && (
+            <motion.div
+              key="rotate-hint"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-30 flex items-center justify-center bg-[rgba(9,6,7,0.92)] p-6 text-center"
+            >
+              <div className="max-w-sm rounded-[24px] border border-[#8b5b2f] bg-[linear-gradient(180deg,rgba(44,24,17,0.98),rgba(20,11,9,0.98))] px-6 py-7">
+                <p className="mb-2 text-[10px] uppercase tracking-[0.35em] text-[#f1b865]">Pantalla completa</p>
+                <h4 className="font-display text-3xl italic text-[#fff5e8]">Gira el teléfono</h4>
+                <p className="mt-3 text-sm leading-relaxed text-[#f4d9bb]">
+                  Intenté bloquear el juego en horizontal, pero este navegador no lo permitió. Gira el dispositivo para ver todos los controles.
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {phase === 'idle' && (
@@ -826,6 +947,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
       </div>
     </div>
   )
@@ -1092,46 +1214,113 @@ function drawChef(ctx: CanvasRenderingContext2D, state: RunState) {
   ctx.save()
   ctx.translate(540, 170 + bob)
 
+  const coatColor = mood === 'happy' ? '#406d50' : mood === 'busy' ? '#8f5439' : '#b63f32'
+  const apronColor = mood === 'happy' ? '#eadfcd' : mood === 'busy' ? '#f0d7c2' : '#f2cdc4'
+
+  // Hat with a softer silhouette and brim.
+  ctx.fillStyle = '#fbf4e8'
+  ctx.beginPath()
+  ctx.arc(-10, -34, 10, 0, Math.PI * 2)
+  ctx.arc(0, -38, 12, 0, Math.PI * 2)
+  ctx.arc(11, -33, 10, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.beginPath()
+  ctx.roundRect(-19, -31, 38, 8, 4)
+  ctx.fill()
+  ctx.fillStyle = 'rgba(217,205,184,0.5)'
+  ctx.beginPath()
+  ctx.roundRect(-15, -30, 30, 3, 2)
+  ctx.fill()
+
+  // Head and neck.
   ctx.fillStyle = '#f2d2b1'
   ctx.beginPath()
-  ctx.arc(0, -11, 18, 0, Math.PI * 2)
+  ctx.arc(0, -10, 17, 0, Math.PI * 2)
   ctx.fill()
+  ctx.fillRect(-5, 2, 10, 6)
 
-  ctx.fillStyle = '#f8f0de'
+  // Coat and apron.
+  ctx.fillStyle = coatColor
   ctx.beginPath()
-  ctx.arc(0, -31, 12, 0, Math.PI * 2)
+  ctx.roundRect(-27, 7, 54, 62, 22)
   ctx.fill()
-  ctx.fillRect(-17, -31, 34, 8)
-
-  ctx.fillStyle = mood === 'happy' ? '#426b49' : mood === 'busy' ? '#915032' : '#b33d30'
+  ctx.fillStyle = apronColor
   ctx.beginPath()
-  ctx.roundRect(-26, 8, 52, 62, 20)
+  ctx.roundRect(-11, 20, 22, 36, 10)
+  ctx.fill()
+  ctx.fillStyle = 'rgba(255,255,255,0.14)'
+  ctx.beginPath()
+  ctx.roundRect(-21, 14, 42, 10, 6)
   ctx.fill()
 
+  // Sleeves and hands.
+  ctx.fillStyle = coatColor
+  ctx.fillRect(-38, 19, 12, 18)
+  ctx.fillRect(26, 19, 12, 18)
   ctx.fillStyle = '#f0d5b7'
-  ctx.fillRect(-33, 20, 14, 8)
-  ctx.fillRect(19, 20, 14, 8)
-  ctx.fillRect(-13, 72, 9, 20)
-  ctx.fillRect(4, 72, 9, 20)
+  ctx.fillRect(-42, 22, 12, 8)
+  ctx.fillRect(30, 22, 12, 8)
 
-  ctx.strokeStyle = '#20120d'
+  // Legs.
+  ctx.fillStyle = '#f6ebdb'
+  ctx.fillRect(-13, 69, 10, 22)
+  ctx.fillRect(4, 69, 10, 22)
+
+  // Face.
+  ctx.strokeStyle = '#241710'
   ctx.lineWidth = 2
   ctx.beginPath()
-  ctx.arc(-5, -15, 1.1, 0, Math.PI * 2)
-  ctx.arc(5, -15, 1.1, 0, Math.PI * 2)
+  ctx.arc(-5, -14, 1.1, 0, Math.PI * 2)
+  ctx.arc(5, -14, 1.1, 0, Math.PI * 2)
   ctx.stroke()
   ctx.beginPath()
-  if (mood === 'happy') {
-    ctx.arc(0, -7, 5, 0.2, Math.PI - 0.2)
-  } else if (mood === 'busy') {
-    ctx.moveTo(-4, -7)
-    ctx.lineTo(4, -5)
-  } else {
-    ctx.arc(0, -2, 5, Math.PI + 0.2, Math.PI * 2 - 0.2)
-  }
+  ctx.moveTo(-8, -18)
+  ctx.lineTo(-1, -18)
+  ctx.moveTo(1, -18)
+  ctx.lineTo(8, -18)
   ctx.stroke()
+  ctx.beginPath()
+  ctx.arc(0, -10, 6, 0.1, Math.PI - 0.1)
+  ctx.stroke()
+  ctx.fillStyle = '#2b1b14'
+  ctx.beginPath()
+  ctx.ellipse(0, -6, 3, 1.6, 0, 0, Math.PI * 2)
+  ctx.fill()
 
-  ctx.fillStyle = 'rgba(244,217,187,0.85)'
+  if (mood === 'busy') {
+    ctx.strokeStyle = '#241710'
+    ctx.beginPath()
+    ctx.moveTo(-8, -20)
+    ctx.lineTo(-1, -19)
+    ctx.moveTo(1, -19)
+    ctx.lineTo(8, -20)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(-5, -4)
+    ctx.lineTo(5, -2)
+    ctx.stroke()
+  }
+
+  if (mood === 'panicked') {
+    ctx.strokeStyle = '#241710'
+    ctx.beginPath()
+    ctx.moveTo(-8, -21)
+    ctx.lineTo(-1, -23)
+    ctx.moveTo(1, -23)
+    ctx.lineTo(8, -21)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.arc(0, 0, 5, Math.PI + 0.15, Math.PI * 2 - 0.15)
+    ctx.stroke()
+  }
+
+  // Small warm shadow under the chef to anchor the character.
+  ctx.fillStyle = 'rgba(0,0,0,0.18)'
+  ctx.beginPath()
+  ctx.ellipse(0, 96, 24, 6, 0, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.fillStyle = 'rgba(244,217,187,0.9)'
   ctx.font = '600 9px sans-serif'
   ctx.textAlign = 'center'
   ctx.fillText(
