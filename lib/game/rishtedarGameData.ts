@@ -28,12 +28,14 @@ export interface IngredientToken {
   accent: string
   fill: string
   glyph: string
+  assetPath: string
 }
 
 export interface RecipeDefinition {
   id: DishId
   name: string
   ingredients: IngredientId[]
+  assetPath: string
   visualStyle: {
     bowl: string
     sauce: string
@@ -75,9 +77,10 @@ export const INGREDIENTS: IngredientToken[] = [
     label: 'Pollo',
     shortLabel: 'Po',
     badgeLabel: 'Po',
-    accent: '#f6d59d',
-    fill: '#8f4f2a',
+    accent: '#ffd0a8',
+    fill: '#71311f',
     glyph: 'Po',
+    assetPath: '/game-assets/ingredients/chicken.png',
   },
   {
     id: 'basmati-rice',
@@ -87,6 +90,7 @@ export const INGREDIENTS: IngredientToken[] = [
     accent: '#fff4d5',
     fill: '#b69352',
     glyph: 'Ar',
+    assetPath: '/game-assets/ingredients/basmati-rice.png',
   },
   {
     id: 'paneer',
@@ -96,15 +100,17 @@ export const INGREDIENTS: IngredientToken[] = [
     accent: '#fff3d2',
     fill: '#ba8d4d',
     glyph: 'Pa',
+    assetPath: '/game-assets/ingredients/paneer.png',
   },
   {
     id: 'chickpeas',
     label: 'Garbanzos',
     shortLabel: 'Ga',
     badgeLabel: 'Ga',
-    accent: '#f6e29c',
-    fill: '#89652e',
+    accent: '#f4df79',
+    fill: '#9f7a32',
     glyph: 'Ga',
+    assetPath: '/game-assets/ingredients/chickpeas.png',
   },
   {
     id: 'black-lentils',
@@ -114,6 +120,7 @@ export const INGREDIENTS: IngredientToken[] = [
     accent: '#a99bc2',
     fill: '#433456',
     glyph: 'Le',
+    assetPath: '/game-assets/ingredients/black-lentils.png',
   },
   {
     id: 'saag',
@@ -123,6 +130,7 @@ export const INGREDIENTS: IngredientToken[] = [
     accent: '#9fd58a',
     fill: '#305b35',
     glyph: 'Sa',
+    assetPath: '/game-assets/ingredients/saag.png',
   },
   {
     id: 'masala-base',
@@ -132,6 +140,7 @@ export const INGREDIENTS: IngredientToken[] = [
     accent: '#f0a14a',
     fill: '#8f3e17',
     glyph: 'Ma',
+    assetPath: '/game-assets/ingredients/masala-base.png',
   },
   {
     id: 'garam-masala',
@@ -141,6 +150,7 @@ export const INGREDIENTS: IngredientToken[] = [
     accent: '#d3aa6b',
     fill: '#5a3921',
     glyph: 'Gr',
+    assetPath: '/game-assets/ingredients/garam-masala.png',
   },
   {
     id: 'makhani-cream',
@@ -150,6 +160,7 @@ export const INGREDIENTS: IngredientToken[] = [
     accent: '#ffd4ad',
     fill: '#a64c2e',
     glyph: 'Mk',
+    assetPath: '/game-assets/ingredients/makhani-cream.png',
   },
 ]
 
@@ -158,6 +169,7 @@ export const RECIPES: RecipeDefinition[] = [
     id: 'butter-chicken',
     name: 'Butter Chicken',
     ingredients: ['chicken', 'masala-base', 'makhani-cream'],
+    assetPath: '/game-assets/dishes/butter-chicken.png',
     visualStyle: { bowl: '#8d3a25', sauce: '#d56d3f', garnish: '#ffd19c' },
     scoreBase: 145,
   },
@@ -165,6 +177,7 @@ export const RECIPES: RecipeDefinition[] = [
     id: 'chicken-biryani',
     name: 'Chicken Biryani',
     ingredients: ['chicken', 'basmati-rice', 'garam-masala'],
+    assetPath: '/game-assets/dishes/chicken-biryani.png',
     visualStyle: { bowl: '#5e4623', sauce: '#d5ab50', garnish: '#f7f1cb' },
     scoreBase: 155,
   },
@@ -172,6 +185,7 @@ export const RECIPES: RecipeDefinition[] = [
     id: 'saag-paneer',
     name: 'Saag Paneer',
     ingredients: ['paneer', 'saag', 'garam-masala'],
+    assetPath: '/game-assets/dishes/saag-paneer.png',
     visualStyle: { bowl: '#274b2a', sauce: '#3d7a42', garnish: '#f5e8c2' },
     scoreBase: 140,
   },
@@ -179,6 +193,7 @@ export const RECIPES: RecipeDefinition[] = [
     id: 'chana-masala',
     name: 'Chana Masala',
     ingredients: ['chickpeas', 'masala-base', 'garam-masala'],
+    assetPath: '/game-assets/dishes/chana-masala.png',
     visualStyle: { bowl: '#6c351f', sauce: '#bb6f32', garnish: '#f4d171' },
     scoreBase: 145,
   },
@@ -186,6 +201,7 @@ export const RECIPES: RecipeDefinition[] = [
     id: 'dal-makhani',
     name: 'Dal Makhani',
     ingredients: ['black-lentils', 'makhani-cream', 'masala-base'],
+    assetPath: '/game-assets/dishes/dal-makhani.png',
     visualStyle: { bowl: '#3a243e', sauce: '#5b3561', garnish: '#ffd6be' },
     scoreBase: 150,
   },

@@ -32,6 +32,7 @@ const TABLE_SLOTS = [
   { x: 146, y: 370 },
   { x: 352, y: 370 },
 ] as const
+const INGREDIENT_TRAY = { x: 650, y: 118, w: 286, h: 336, radius: 26 } as const
 const INGREDIENT_SLOTS = [
   { x: 706, y: 170 },
   { x: 798, y: 170 },
@@ -128,11 +129,12 @@ interface RunState {
   buttonMap: DrawButton[]
 }
 
-const CUSTOMER_SKINS = [
-  { turban: '#f0a54c', outfit: '#6f2f2b', accent: '#f5d9ab' },
-  { turban: '#4f7d57', outfit: '#ad5032', accent: '#f0d7b4' },
-  { turban: '#cc6a4b', outfit: '#3d4f6c', accent: '#f4dbc0' },
-]
+const CUSTOMER_PORTRAIT_PATHS = [
+  '/game-assets/customers/customer-1.png',
+  '/game-assets/customers/customer-2.png',
+  '/game-assets/customers/customer-3.png',
+  '/game-assets/customers/customer-4.png',
+] as const
 
 function initialRunState(): RunState {
   return {
@@ -229,6 +231,12 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   const stageFrameRef = useRef<HTMLDivElement>(null)
   const audioCtx = useRef<AudioContext | null>(null)
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null)
+  const stageBackgroundRef = useRef<HTMLImageElement | null>(null)
+  const logoSpriteRef = useRef<HTMLImageElement | null>(null)
+  const chefSpritesRef = useRef<Partial<Record<ChefMood, HTMLImageElement>>>({})
+  const ingredientSpritesRef = useRef<Partial<Record<IngredientId, HTMLImageElement>>>({})
+  const recipeSpritesRef = useRef<Partial<Record<DishId, HTMLImageElement>>>({})
+  const customerPortraitsRef = useRef<HTMLImageElement[]>([])
   const stateRef = useRef<RunState>(initialRunState())
 
   const [phase, setPhase] = useState<Phase>('idle')
@@ -645,6 +653,72 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   }, [])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const image = new window.Image()
+    image.src = '/game-assets/background/restaurant-bg-pixel.png'
+    stageBackgroundRef.current = image
+
+    const logo = new window.Image()
+    logo.src = '/game-assets/brand/rishtedar-logo-pixel.png'
+    logoSpriteRef.current = logo
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const spriteSources: Record<ChefMood, string> = {
+      happy: '/game-assets/chef/chef-happy.png',
+      busy: '/game-assets/chef/chef-busy.png',
+      panicked: '/game-assets/chef/chef-panicked.png',
+    }
+
+    const sprites: Partial<Record<ChefMood, HTMLImageElement>> = {}
+    ;(Object.entries(spriteSources) as Array<[ChefMood, string]>).forEach(([mood, src]) => {
+      const image = new window.Image()
+      image.src = src
+      sprites[mood] = image
+    })
+
+    chefSpritesRef.current = sprites
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const sprites: Partial<Record<IngredientId, HTMLImageElement>> = {}
+    INGREDIENTS.forEach((ingredient) => {
+      const image = new window.Image()
+      image.src = ingredient.assetPath
+      sprites[ingredient.id] = image
+    })
+    ingredientSpritesRef.current = sprites
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const sprites: Partial<Record<DishId, HTMLImageElement>> = {}
+    RECIPES.forEach((recipe) => {
+      const image = new window.Image()
+      image.src = recipe.assetPath
+      sprites[recipe.id] = image
+    })
+    recipeSpritesRef.current = sprites
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    customerPortraitsRef.current = CUSTOMER_PORTRAIT_PATHS.map((src) => {
+      const image = new window.Image()
+      image.src = src
+      return image
+    })
+  }, [])
+
+
+  useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
@@ -745,16 +819,23 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
       ctx.fillStyle = bg
       ctx.fillRect(0, 0, W, H)
 
-      drawBackdrop(ctx)
+      drawBackdrop(ctx, stageBackgroundRef.current)
       drawZones(ctx)
+      drawStageSign(ctx, logoSpriteRef.current)
 
       const difficulty = getDifficultyState(state.elapsedMs)
       state.buttonMap = []
 
-      drawTables(ctx, state)
-      drawChef(ctx, state)
-      drawStation(ctx, state)
-      drawIngredientTray(ctx, state)
+      drawTables(
+        ctx,
+        state,
+        ingredientSpritesRef.current,
+        recipeSpritesRef.current,
+        customerPortraitsRef.current
+      )
+      drawChef(ctx, state, chefSpritesRef.current)
+      drawStation(ctx, state, ingredientSpritesRef.current, recipeSpritesRef.current)
+      drawIngredientTray(ctx, state, ingredientSpritesRef.current)
       drawHud(ctx, state, difficulty)
       drawFloaters(ctx, state)
 
@@ -987,14 +1068,53 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   )
 }
 
-function drawBackdrop(ctx: CanvasRenderingContext2D) {
+function drawBackdrop(ctx: CanvasRenderingContext2D, backgroundImage: HTMLImageElement | null) {
   ctx.save()
 
+  if (backgroundImage && backgroundImage.complete && backgroundImage.naturalWidth > 0) {
+    const imageRatio = backgroundImage.naturalWidth / backgroundImage.naturalHeight
+    const canvasRatio = W / H
+
+    let drawWidth = W
+    let drawHeight = H
+    let drawX = 0
+    let drawY = 0
+
+    if (imageRatio > canvasRatio) {
+      drawHeight = H
+      drawWidth = H * imageRatio
+      drawX = (W - drawWidth) / 2
+    } else {
+      drawWidth = W
+      drawHeight = W / imageRatio
+      drawY = (H - drawHeight) / 2
+    }
+
+    ctx.imageSmoothingEnabled = false
+    ctx.drawImage(backgroundImage, drawX, drawY, drawWidth, drawHeight)
+
+    ctx.fillStyle = 'rgba(18, 10, 8, 0.22)'
+    ctx.fillRect(0, 0, W, H)
+  } else {
+    const bg = ctx.createLinearGradient(0, 0, 0, H)
+    bg.addColorStop(0, '#120d0a')
+    bg.addColorStop(0.45, '#24140f')
+    bg.addColorStop(1, '#090607')
+    ctx.fillStyle = bg
+    ctx.fillRect(0, 0, W, H)
+  }
+
   const glow = ctx.createRadialGradient(480, 220, 40, 480, 220, 320)
-  glow.addColorStop(0, 'rgba(255, 179, 94, 0.12)')
+  glow.addColorStop(0, 'rgba(255, 179, 94, 0.08)')
   glow.addColorStop(1, 'rgba(255, 179, 94, 0)')
   ctx.fillStyle = glow
   ctx.fillRect(0, 0, W, H)
+
+  const topShade = ctx.createLinearGradient(0, 0, 0, 120)
+  topShade.addColorStop(0, 'rgba(8, 5, 4, 0.72)')
+  topShade.addColorStop(1, 'rgba(8, 5, 4, 0)')
+  ctx.fillStyle = topShade
+  ctx.fillRect(0, 0, W, 120)
 
   ctx.fillStyle = 'rgba(255,255,255,0.03)'
   for (let i = 0; i < 24; i += 1) {
@@ -1006,10 +1126,11 @@ function drawBackdrop(ctx: CanvasRenderingContext2D) {
     ctx.fillRect(0, y, W, 1)
   }
 
-  ctx.fillStyle = 'rgba(32, 20, 16, 0.95)'
-  ctx.fillRect(0, H - 84, W, 84)
-  ctx.fillStyle = 'rgba(201,149,42,0.12)'
-  ctx.fillRect(0, H - 84, W, 2)
+  const bottomShade = ctx.createLinearGradient(0, H - 120, 0, H)
+  bottomShade.addColorStop(0, 'rgba(18, 10, 8, 0)')
+  bottomShade.addColorStop(1, 'rgba(18, 10, 8, 0.66)')
+  ctx.fillStyle = bottomShade
+  ctx.fillRect(0, H - 120, W, 120)
 
   ctx.restore()
 }
@@ -1018,36 +1139,187 @@ function drawZones(ctx: CanvasRenderingContext2D) {
   ctx.save()
 
   const kitchenGradient = ctx.createLinearGradient(0, STAGE_Y, 0, H - 84)
-  kitchenGradient.addColorStop(0, 'rgba(56, 28, 18, 0.55)')
-  kitchenGradient.addColorStop(1, 'rgba(20, 12, 10, 0.24)')
+  kitchenGradient.addColorStop(0, 'rgba(34, 18, 12, 0.28)')
+  kitchenGradient.addColorStop(1, 'rgba(16, 10, 8, 0.16)')
   ctx.fillStyle = kitchenGradient
   ctx.fillRect(18, STAGE_Y, 610, H - STAGE_Y - 100)
 
-  const trayGradient = ctx.createLinearGradient(644, STAGE_Y, 950, H - 84)
-  trayGradient.addColorStop(0, 'rgba(58, 30, 22, 0.8)')
-  trayGradient.addColorStop(1, 'rgba(26, 15, 13, 0.96)')
+  const trayGradient = ctx.createLinearGradient(650, STAGE_Y, 936, H - 84)
+  trayGradient.addColorStop(0, 'rgba(46, 24, 18, 0.56)')
+  trayGradient.addColorStop(1, 'rgba(24, 14, 12, 0.72)')
   ctx.fillStyle = trayGradient
   ctx.beginPath()
-  ctx.roundRect(644, STAGE_Y + 4, 296, H - STAGE_Y - 24, 26)
+  ctx.roundRect(INGREDIENT_TRAY.x, INGREDIENT_TRAY.y, INGREDIENT_TRAY.w, INGREDIENT_TRAY.h, INGREDIENT_TRAY.radius)
   ctx.fill()
 
   ctx.strokeStyle = 'rgba(201,149,42,0.18)'
   ctx.lineWidth = 1
   ctx.beginPath()
-  ctx.roundRect(644, STAGE_Y + 4, 296, H - STAGE_Y - 24, 26)
+  ctx.roundRect(INGREDIENT_TRAY.x, INGREDIENT_TRAY.y, INGREDIENT_TRAY.w, INGREDIENT_TRAY.h, INGREDIENT_TRAY.radius)
   ctx.stroke()
 
   ctx.fillStyle = 'rgba(201,149,42,0.6)'
   ctx.font = '600 11px sans-serif'
   ctx.textAlign = 'left'
-  ctx.fillText('SALÓN', 52, 118)
-  ctx.fillText('PASE / ARMADO', 462, 118)
-  ctx.fillText('INGREDIENTES', 684, 118)
+  ctx.fillText('INGREDIENTES', 682, 114)
 
   ctx.restore()
 }
 
-function drawTables(ctx: CanvasRenderingContext2D, state: RunState) {
+function drawStageSign(ctx: CanvasRenderingContext2D, logoSprite: HTMLImageElement | null) {
+  if (!logoSprite || !logoSprite.complete || logoSprite.naturalWidth <= 0) return
+
+  const signX = 530
+  const signY = 104
+  const signW = 176
+  const signH = 54
+  const logoPadding = 2
+  const logoW = signW - logoPadding * 2
+  const logoH = logoW * (logoSprite.naturalHeight / logoSprite.naturalWidth)
+
+  ctx.save()
+
+  const woodGradient = ctx.createLinearGradient(signX, signY, signX, signY + signH)
+  woodGradient.addColorStop(0, 'rgba(92, 54, 28, 0.9)')
+  woodGradient.addColorStop(1, 'rgba(51, 29, 18, 0.96)')
+  ctx.fillStyle = woodGradient
+  ctx.beginPath()
+  ctx.roundRect(signX - signW / 2, signY - signH / 2, signW, signH, 14)
+  ctx.fill()
+
+  ctx.strokeStyle = 'rgba(201,149,42,0.46)'
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.roundRect(signX - signW / 2, signY - signH / 2, signW, signH, 14)
+  ctx.stroke()
+
+  ctx.fillStyle = 'rgba(255,255,255,0.07)'
+  ctx.beginPath()
+  ctx.roundRect(signX - signW / 2 + 8, signY - signH / 2 + 6, signW - 16, 10, 8)
+  ctx.fill()
+
+  ctx.strokeStyle = 'rgba(46, 28, 16, 0.9)'
+  ctx.lineWidth = 4
+  ctx.beginPath()
+  ctx.moveTo(signX - signW / 2 + 24, signY + signH / 2)
+  ctx.lineTo(signX - signW / 2 + 34, signY + signH / 2 + 20)
+  ctx.moveTo(signX + signW / 2 - 24, signY + signH / 2)
+  ctx.lineTo(signX + signW / 2 - 34, signY + signH / 2 + 20)
+  ctx.stroke()
+
+  ctx.save()
+  ctx.beginPath()
+  ctx.roundRect(signX - signW / 2 + 3, signY - signH / 2 + 3, signW - 6, signH - 6, 12)
+  ctx.clip()
+  ctx.imageSmoothingEnabled = false
+  ctx.drawImage(
+    logoSprite,
+    signX - logoW / 2,
+    signY - logoH / 2 + 3,
+    logoW,
+    logoH
+  )
+  ctx.restore()
+
+  ctx.restore()
+}
+
+function drawIngredientShortTag(
+  ctx: CanvasRenderingContext2D,
+  ingredientId: IngredientId,
+  x: number,
+  y: number,
+  compact = false
+) {
+  const ingredient = INGREDIENT_BY_ID[ingredientId]
+  const width = compact ? 16 : 22
+  const height = compact ? 11 : 14
+
+  ctx.save()
+  ctx.fillStyle = 'rgba(18,10,8,0.82)'
+  ctx.beginPath()
+  ctx.roundRect(x - width / 2, y - height / 2, width, height, compact ? 5 : 7)
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(255,245,232,0.3)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.roundRect(x - width / 2, y - height / 2, width, height, compact ? 5 : 7)
+  ctx.stroke()
+  ctx.fillStyle = ingredient.accent
+  ctx.font = `700 ${compact ? 7 : 8}px sans-serif`
+  ctx.textAlign = 'center'
+  ctx.fillText(ingredient.shortLabel, x, y + (compact ? 2.5 : 3))
+  ctx.restore()
+}
+
+function drawIngredientSprite(
+  ctx: CanvasRenderingContext2D,
+  sprite: HTMLImageElement | undefined,
+  x: number,
+  y: number,
+  size: number
+) {
+  if (!sprite || !sprite.complete || sprite.naturalWidth <= 0) return false
+
+  const ratio = sprite.naturalWidth / sprite.naturalHeight
+  const width = ratio >= 1 ? size : size * ratio
+  const height = ratio >= 1 ? size / ratio : size
+  ctx.imageSmoothingEnabled = false
+  ctx.drawImage(sprite, x - width / 2, y - height / 2, width, height)
+  return true
+}
+
+function drawIngredientBadge(
+  ctx: CanvasRenderingContext2D,
+  sprite: HTMLImageElement | undefined,
+  ingredientId: IngredientId,
+  x: number,
+  y: number,
+  size: number,
+  fallbackRadius: number,
+  showLabel = false
+) {
+  const ingredientData = INGREDIENT_BY_ID[ingredientId]
+
+  ctx.save()
+  ctx.beginPath()
+  ctx.arc(x, y, fallbackRadius, 0, Math.PI * 2)
+  ctx.clip()
+  const drewSprite = drawIngredientSprite(ctx, sprite, x, y, size)
+  ctx.restore()
+
+  if (!drewSprite) {
+    ctx.fillStyle = ingredientData.fill
+    ctx.beginPath()
+    ctx.arc(x, y, fallbackRadius, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = ingredientData.accent
+    ctx.font = `bold ${Math.max(7, Math.round(fallbackRadius * 0.72))}px sans-serif`
+    ctx.textAlign = 'center'
+    ctx.fillText(ingredientData.badgeLabel, x, y + 3)
+  }
+
+  ctx.strokeStyle = 'rgba(255,245,232,0.42)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.arc(x, y, fallbackRadius, 0, Math.PI * 2)
+  ctx.stroke()
+
+  if (showLabel) {
+    ctx.fillStyle = '#f5dfc2'
+    ctx.font = '600 8px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(ingredientData.badgeLabel, x, y + fallbackRadius + 10)
+  }
+}
+
+function drawTables(
+  ctx: CanvasRenderingContext2D,
+  state: RunState,
+  ingredientSprites: Partial<Record<IngredientId, HTMLImageElement>>,
+  recipeSprites: Partial<Record<DishId, HTMLImageElement>>,
+  customerPortraits: HTMLImageElement[]
+) {
   ctx.save()
 
   TABLE_SLOTS.forEach((slot, index) => {
@@ -1139,25 +1411,20 @@ function drawTables(ctx: CanvasRenderingContext2D, state: RunState) {
     ctx.roundRect(patienceX, patienceY, patienceWidth * Math.max(0, customer.patience), 8, 8)
     ctx.fill()
 
-    drawCustomer(ctx, customerX, customerY, index, customer.mood, customer.pulse)
-    drawCompactRecipeCard(ctx, bowlX, cardY + 60, customer.recipe)
+    drawCustomer(ctx, customerX, customerY, index, customer.mood, customer.pulse, customerPortraits)
+    drawCompactRecipeCard(ctx, bowlX, cardY + 60, customer.recipe, recipeSprites[customer.recipe.id])
 
     customer.recipe.ingredients.forEach((ingredientId, ingredientIndex) => {
-      const ingredient = INGREDIENT_BY_ID[ingredientId]
       const chipX = chipsStartX + ingredientIndex * 28
-      ctx.fillStyle = ingredient.fill
-      ctx.beginPath()
-      ctx.arc(chipX, bottomY, 11, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.strokeStyle = 'rgba(255,245,232,0.38)'
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.arc(chipX, bottomY, 11, 0, Math.PI * 2)
-      ctx.stroke()
-      ctx.fillStyle = ingredient.accent
-      ctx.font = 'bold 9px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.fillText(ingredient.badgeLabel, chipX, bottomY + 3)
+      drawIngredientBadge(
+        ctx,
+        ingredientSprites[ingredientId],
+        ingredientId,
+        chipX,
+        bottomY,
+        17,
+        11
+      )
     })
 
     if (customer.mood === 'impatient') {
@@ -1176,7 +1443,8 @@ function drawCompactRecipeCard(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  recipe: RecipeDefinition
+  recipe: RecipeDefinition,
+  recipeSprite: HTMLImageElement | undefined
 ) {
   ctx.save()
 
@@ -1185,7 +1453,7 @@ function drawCompactRecipeCard(
   ctx.roundRect(x - 34, y - 34, 68, 68, 18)
   ctx.fill()
 
-  drawOrderBowl(ctx, x, y, recipe, 0.96, 0.64)
+  drawOrderBowl(ctx, x, y, recipe, recipeSprite, 0.96, 46, 38)
 
   ctx.restore()
 }
@@ -1196,54 +1464,120 @@ function drawCustomer(
   y: number,
   index: number,
   mood: CustomerMood,
-  pulse: number
+  pulse: number,
+  customerPortraits: HTMLImageElement[]
 ) {
-  const skin = CUSTOMER_SKINS[index % CUSTOMER_SKINS.length]
   const bob = Math.sin(pulse) * 2.8
+  const portrait = customerPortraits[index % customerPortraits.length]
+
+  if (portrait && portrait.complete && portrait.naturalWidth > 0) {
+    const drawHeight = 74
+    const drawWidth = (portrait.naturalWidth / portrait.naturalHeight) * drawHeight
+    const eyebrowY = -23
+    const mouthY = -2
+
+    ctx.save()
+    ctx.translate(x, y + bob)
+    ctx.imageSmoothingEnabled = false
+    ctx.drawImage(portrait, -drawWidth / 2, -35, drawWidth, drawHeight)
+
+    ctx.strokeStyle = mood === 'impatient' ? '#3b1c17' : '#2b1b14'
+    ctx.lineWidth = mood === 'impatient' ? 2.5 : 2
+    ctx.lineCap = 'round'
+
+    if (mood === 'happy') {
+      ctx.beginPath()
+      ctx.moveTo(-11, eyebrowY)
+      ctx.lineTo(-5, eyebrowY - 1)
+      ctx.moveTo(5, eyebrowY - 1)
+      ctx.lineTo(11, eyebrowY)
+      ctx.stroke()
+
+      ctx.strokeStyle = '#6e241a'
+      ctx.beginPath()
+      ctx.arc(0, mouthY, 6, 0.2, Math.PI - 0.2)
+      ctx.stroke()
+
+      ctx.fillStyle = 'rgba(214,96,78,0.55)'
+      ctx.beginPath()
+      ctx.arc(-10, mouthY - 1, 2.5, 0, Math.PI * 2)
+      ctx.arc(10, mouthY - 1, 2.5, 0, Math.PI * 2)
+      ctx.fill()
+    } else if (mood === 'neutral') {
+      ctx.beginPath()
+      ctx.moveTo(-11, eyebrowY)
+      ctx.lineTo(-5, eyebrowY)
+      ctx.moveTo(5, eyebrowY)
+      ctx.lineTo(11, eyebrowY)
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.moveTo(-5, mouthY + 1)
+      ctx.lineTo(5, mouthY + 1)
+      ctx.stroke()
+    } else {
+      ctx.beginPath()
+      ctx.moveTo(-12, eyebrowY + 1)
+      ctx.lineTo(-4, eyebrowY - 2)
+      ctx.moveTo(4, eyebrowY - 2)
+      ctx.lineTo(12, eyebrowY + 1)
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.arc(0, mouthY + 6, 6, Math.PI + 0.24, Math.PI * 2 - 0.24)
+      ctx.stroke()
+
+      ctx.strokeStyle = '#de6947'
+      ctx.beginPath()
+      ctx.moveTo(17, -16)
+      ctx.lineTo(21, -22)
+      ctx.moveTo(21, -22)
+      ctx.lineTo(24, -18)
+      ctx.stroke()
+    }
+
+    ctx.restore()
+    return
+  }
 
   ctx.save()
   ctx.translate(x, y + bob)
 
-  ctx.fillStyle = skin.outfit
+  ctx.fillStyle = '#74443a'
   ctx.beginPath()
   ctx.roundRect(-26, -4, 52, 42, 18)
   ctx.fill()
 
-  ctx.fillStyle = skin.accent
+  ctx.fillStyle = '#f1d1b0'
   ctx.beginPath()
   ctx.arc(0, -18, 18, 0, Math.PI * 2)
   ctx.fill()
 
-  ctx.fillStyle = skin.turban
-  ctx.beginPath()
-  ctx.ellipse(0, -30, 22, 12, 0, 0, Math.PI * 2)
-  ctx.fill()
-
-  ctx.strokeStyle = '#2a1a14'
-  ctx.lineWidth = 2
-  ctx.beginPath()
-  ctx.arc(-6, -20, 1.5, 0, Math.PI * 2)
-  ctx.arc(6, -20, 1.5, 0, Math.PI * 2)
-  ctx.stroke()
-
-  ctx.beginPath()
-  if (mood === 'happy') {
-    ctx.arc(0, -12, 6, 0.2, Math.PI - 0.2)
-  } else if (mood === 'neutral') {
-    ctx.moveTo(-6, -11)
-    ctx.lineTo(6, -11)
-  } else {
-    ctx.arc(0, -8, 6, Math.PI + 0.2, Math.PI * 2 - 0.2)
-  }
-  ctx.stroke()
-
   ctx.restore()
 }
 
-function drawChef(ctx: CanvasRenderingContext2D, state: RunState) {
+function drawChef(
+  ctx: CanvasRenderingContext2D,
+  state: RunState,
+  chefSprites: Partial<Record<ChefMood, HTMLImageElement>>
+) {
   const pace = state.phase === 'playing' ? Math.sin(state.elapsedMs * 0.008) : 0
   const mood = state.chefMood
   const bob = mood === 'panicked' ? Math.sin(state.elapsedMs * 0.04) * 4 : pace * 2
+
+  const sprite = chefSprites[mood]
+
+  if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+    const drawHeight = mood === 'busy' ? 146 : 140
+    const drawWidth = (sprite.naturalWidth / sprite.naturalHeight) * drawHeight
+
+    ctx.save()
+    ctx.translate(540, 210 + bob)
+    ctx.imageSmoothingEnabled = false
+    ctx.drawImage(sprite, -drawWidth / 2, -drawHeight / 2 - 8, drawWidth, drawHeight)
+    ctx.restore()
+    return
+  }
 
   ctx.save()
   ctx.translate(540, 170 + bob)
@@ -1366,18 +1700,23 @@ function drawChef(ctx: CanvasRenderingContext2D, state: RunState) {
   ctx.restore()
 }
 
-function drawStation(ctx: CanvasRenderingContext2D, state: RunState) {
+function drawStation(
+  ctx: CanvasRenderingContext2D,
+  state: RunState,
+  ingredientSprites: Partial<Record<IngredientId, HTMLImageElement>>,
+  recipeSprites: Partial<Record<DishId, HTMLImageElement>>
+) {
   ctx.save()
 
-  const panelX = 456
-  const panelY = 304
-  const panelW = 148
-  const panelH = 120
+  const panelX = 452
+  const panelY = 300
+  const panelW = 156
+  const panelH = 128
   const plateCenterX = panelX + panelW / 2
-  const plateCenterY = 366
-  const titleY = 320
-  const subtitleY = 336
-  const helperY = 400
+  const plateCenterY = 364
+  const titleY = 316
+  const subtitleY = 332
+  const helperY = 402
 
   ctx.fillStyle = 'rgba(17,11,10,0.9)'
   ctx.beginPath()
@@ -1397,7 +1736,11 @@ function drawStation(ctx: CanvasRenderingContext2D, state: RunState) {
   ctx.fillStyle = state.plate.length ? '#fff5e8' : 'rgba(244,217,187,0.58)'
   ctx.font = '600 10px sans-serif'
   ctx.fillText(
-    state.plateMatch ? RECIPE_BY_ID[state.plateMatch].name : state.plate.length ? 'Sigue armando...' : 'Selecciona ingredientes',
+    state.plateMatch
+      ? RECIPE_BY_ID[state.plateMatch].name
+      : state.plate.length
+        ? 'Sigue armando...'
+        : 'Selecciona ingredientes',
     plateCenterX,
     subtitleY
   )
@@ -1417,27 +1760,32 @@ function drawStation(ctx: CanvasRenderingContext2D, state: RunState) {
   ctx.restore()
 
   if (state.plateMatch) {
-    drawOrderBowl(ctx, plateCenterX, plateCenterY, RECIPE_BY_ID[state.plateMatch], 1, 0.36)
+    drawOrderBowl(
+      ctx,
+      plateCenterX,
+      plateCenterY,
+      RECIPE_BY_ID[state.plateMatch],
+      recipeSprites[state.plateMatch],
+      1,
+      90,
+      68
+    )
   }
 
   const chipBaseY = 356
   state.plate.forEach((ingredientId, index) => {
-    const ingredient = INGREDIENT_BY_ID[ingredientId]
     const isLeftColumn = index < 2
     const x = isLeftColumn ? panelX + 22 : panelX + panelW - 20
     const y = chipBaseY + (isLeftColumn ? index : index - 1) * 20
-    ctx.fillStyle = ingredient.fill
-    ctx.beginPath()
-    ctx.arc(x, y, 9, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(255,245,232,0.42)'
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.arc(x, y, 9, 0, Math.PI * 2)
-    ctx.stroke()
-    ctx.fillStyle = ingredient.accent
-    ctx.font = 'bold 8px sans-serif'
-    ctx.fillText(ingredient.badgeLabel, x, y + 3)
+    drawIngredientBadge(
+      ctx,
+      ingredientSprites[ingredientId],
+      ingredientId,
+      x,
+      y,
+      14,
+      9
+    )
   })
 
   ctx.fillStyle = 'rgba(244,217,187,0.58)'
@@ -1475,13 +1823,17 @@ function drawStation(ctx: CanvasRenderingContext2D, state: RunState) {
   ctx.restore()
 }
 
-function drawIngredientTray(ctx: CanvasRenderingContext2D, state: RunState) {
+function drawIngredientTray(
+  ctx: CanvasRenderingContext2D,
+  state: RunState,
+  ingredientSprites: Partial<Record<IngredientId, HTMLImageElement>>
+) {
   ctx.save()
 
   INGREDIENTS.forEach((ingredient, index) => {
     const slot = INGREDIENT_SLOTS[index]
     const selected = state.plate.includes(ingredient.id)
-    ctx.fillStyle = selected ? ingredient.fill : blendAlpha(ingredient.fill, 'cc')
+    ctx.fillStyle = selected ? blendAlpha(ingredient.fill, 'f1') : blendAlpha(ingredient.fill, 'b2')
     ctx.beginPath()
     ctx.arc(slot.x, slot.y, selected ? 39 : 35, 0, Math.PI * 2)
     ctx.fill()
@@ -1500,10 +1852,22 @@ function drawIngredientTray(ctx: CanvasRenderingContext2D, state: RunState) {
     ctx.arc(slot.x, slot.y, selected ? 39 : 35, 0, Math.PI * 2)
     ctx.stroke()
 
-    ctx.fillStyle = ingredient.accent
-    ctx.font = 'bold 16px sans-serif'
-    ctx.textAlign = 'center'
-    ctx.fillText(ingredient.glyph, slot.x, slot.y + 5)
+    drawIngredientShortTag(ctx, ingredient.id, slot.x, slot.y - 28)
+
+    const drewSprite = drawIngredientSprite(
+      ctx,
+      ingredientSprites[ingredient.id],
+      slot.x,
+      slot.y - 1,
+      selected ? 44 : 40
+    )
+
+    if (!drewSprite) {
+      ctx.fillStyle = ingredient.accent
+      ctx.font = 'bold 16px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText(ingredient.glyph, slot.x, slot.y + 5)
+    }
 
     ctx.fillStyle = '#f5dfc2'
     ctx.font = '600 9px sans-serif'
@@ -1532,13 +1896,31 @@ function drawOrderBowl(
   x: number,
   y: number,
   recipe: RecipeDefinition,
+  recipeSprite: HTMLImageElement | undefined,
   alpha: number,
-  scale = 1
+  maxWidth = 68,
+  maxHeight = 68
 ) {
+  if (recipeSprite && recipeSprite.complete && recipeSprite.naturalWidth > 0) {
+    const widthRatio = maxWidth / recipeSprite.naturalWidth
+    const heightRatio = maxHeight / recipeSprite.naturalHeight
+    const scale = Math.min(widthRatio, heightRatio)
+    const drawWidth = recipeSprite.naturalWidth * scale
+    const drawHeight = recipeSprite.naturalHeight * scale
+
+    ctx.save()
+    ctx.globalAlpha = alpha
+    ctx.imageSmoothingEnabled = false
+    ctx.drawImage(recipeSprite, x - drawWidth / 2, y - drawHeight / 2, drawWidth, drawHeight)
+    ctx.restore()
+    return
+  }
+
   ctx.save()
   ctx.globalAlpha = alpha
   ctx.translate(x, y)
-  ctx.scale(scale, scale)
+  const fallbackScale = Math.min(maxWidth / 68, maxHeight / 68)
+  ctx.scale(fallbackScale, fallbackScale)
   ctx.fillStyle = '#ece2d6'
   ctx.beginPath()
   ctx.arc(0, 0, 34, 0, Math.PI * 2)
@@ -1567,33 +1949,38 @@ function drawOrderBowl(
 function drawHud(ctx: CanvasRenderingContext2D, state: RunState, difficulty: GameDifficultyState) {
   ctx.save()
 
-  const hudGradient = ctx.createLinearGradient(0, 0, 0, HUD_H)
-  hudGradient.addColorStop(0, 'rgba(12,8,7,0.98)')
-  hudGradient.addColorStop(1, 'rgba(20,11,9,0.92)')
+  const hudGradient = ctx.createLinearGradient(0, 6, 0, HUD_H + 10)
+  hudGradient.addColorStop(0, 'rgba(12,8,7,0.62)')
+  hudGradient.addColorStop(1, 'rgba(20,11,9,0.38)')
   ctx.fillStyle = hudGradient
-  ctx.fillRect(0, 0, W, HUD_H)
-  ctx.fillStyle = 'rgba(201,149,42,0.2)'
-  ctx.fillRect(0, HUD_H - 1, W, 1)
+  ctx.beginPath()
+  ctx.roundRect(12, 8, W - 24, HUD_H - 6, 18)
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(201,149,42,0.16)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.roundRect(12, 8, W - 24, HUD_H - 6, 18)
+  ctx.stroke()
 
   ctx.fillStyle = '#fff5e8'
   ctx.font = '700 24px sans-serif'
   ctx.textAlign = 'left'
-  ctx.fillText(state.score.toLocaleString('es-CL'), 26, 34)
+  ctx.fillText(state.score.toLocaleString('es-CL'), 28, 38)
   ctx.fillStyle = 'rgba(244,217,187,0.6)'
   ctx.font = '11px sans-serif'
-  ctx.fillText('PTS', 26, 52)
+  ctx.fillText('PTS', 28, 55)
 
   ctx.fillStyle = '#f1b865'
   ctx.font = '700 18px sans-serif'
-  ctx.fillText(`Combo x${Math.max(1, state.combo)}`, 180, 36)
+  ctx.fillText(`Combo x${Math.max(1, state.combo)}`, 182, 39)
   ctx.fillStyle = 'rgba(244,217,187,0.62)'
   ctx.font = '11px sans-serif'
-  ctx.fillText(`Max x${state.maxCombo}`, 180, 53)
+  ctx.fillText(`Max x${state.maxCombo}`, 182, 56)
 
   ctx.fillStyle = '#f4d9bb'
   ctx.font = '600 13px sans-serif'
   ctx.textAlign = 'center'
-  ctx.fillText(`Fase ${difficulty.tier}`, 502, 24)
+  ctx.fillText(`Fase ${difficulty.tier}`, 502, 28)
   ctx.fillStyle = 'rgba(244,217,187,0.62)'
   ctx.font = '11px sans-serif'
   ctx.fillText(
@@ -1605,33 +1992,33 @@ function drawHud(ctx: CanvasRenderingContext2D, state: RunState, difficulty: Gam
           ? 'Rush de cocina'
           : 'Caos controlado',
     502,
-    46
+    50
   )
 
   ctx.textAlign = 'right'
   for (let i = 0; i < LIVES_MAX; i += 1) {
     ctx.globalAlpha = i < state.lives ? 1 : 0.18
     ctx.font = '20px serif'
-    ctx.fillText('❤', 920 - i * 22, 34)
+    ctx.fillText('❤', 920 - i * 22, 38)
   }
   ctx.globalAlpha = 1
   ctx.fillStyle = 'rgba(244,217,187,0.62)'
   ctx.font = '11px sans-serif'
-  ctx.fillText('Vidas', 920, 52)
+  ctx.fillText('Vidas', 920, 55)
 
   const activeCount = state.customers.filter(Boolean).length
   ctx.fillStyle = 'rgba(255,255,255,0.08)'
   ctx.beginPath()
-  ctx.roundRect(640, 18, 150, 11, 10)
+  ctx.roundRect(640, 22, 150, 11, 10)
   ctx.fill()
   ctx.fillStyle = '#62d9a0'
   ctx.beginPath()
-  ctx.roundRect(640, 18, 150 * (activeCount / getMaxCustomers(difficulty.tier || 1)), 11, 10)
+  ctx.roundRect(640, 22, 150 * (activeCount / getMaxCustomers(difficulty.tier || 1)), 11, 10)
   ctx.fill()
   ctx.fillStyle = 'rgba(244,217,187,0.72)'
   ctx.font = '10px sans-serif'
   ctx.textAlign = 'left'
-  ctx.fillText('MESAS OCUPADAS', 640, 46)
+  ctx.fillText('MESAS OCUPADAS', 640, 50)
 
   ctx.restore()
 }
