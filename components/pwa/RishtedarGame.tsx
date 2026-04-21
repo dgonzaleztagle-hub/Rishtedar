@@ -25,12 +25,10 @@ const LIVES_MAX = 3
 const TABLE_W = 176
 const TABLE_H = 128
 const TABLE_SLOTS = [
-  { x: 130, y: 74 },
-  { x: 326, y: 74 },
-  { x: 130, y: 239 },
-  { x: 326, y: 239 },
-  { x: 130, y: 404 },
-  { x: 326, y: 404 },
+  { x: 130, y: 152 },
+  { x: 326, y: 152 },
+  { x: 130, y: 328 },
+  { x: 326, y: 328 },
 ] as const
 const INGREDIENT_TRAY = { x: 650, y: 4, w: 286, h: 472, radius: 26 } as const
 const INGREDIENT_SLOTS = [
@@ -44,8 +42,8 @@ const INGREDIENT_SLOTS = [
   { x: 798, y: 376 },
   { x: 890, y: 376 },
 ] as const
-const CLEAR_BUTTON = { x: 540, y: 388, w: 130, h: 28 }
-const SERVE_HINT = { x: 540, y: 448, w: 290, h: 28 }
+const CLEAR_BUTTON = { x: 540, y: 420, w: 130, h: 28 }
+const SERVE_HINT = { x: 540, y: 458, w: 290, h: 28 }
 
 type Phase = 'idle' | 'playing' | 'game-over'
 type FloaterTone = 'good' | 'bad' | 'warn'
@@ -148,7 +146,7 @@ function initialRunState(): RunState {
     dishesServed: 0,
     elapsedMs: 0,
     spawnTimerMs: 1200,
-    customers: [null, null, null, null, null, null],
+    customers: [null, null, null, null],
     plate: [],
     plateMatch: null,
     platePulse: 0,
@@ -183,8 +181,7 @@ function getDifficultyState(elapsedMs: number): GameDifficultyState {
 function getMaxCustomers(tier: DifficultyTier): number {
   if (tier === 1) return 2
   if (tier === 2) return 3
-  if (tier === 3) return 5
-  return 6
+  return 4
 }
 
 function getRecipeWeight(recipe: RecipeDefinition, complexityWeight: number): number {
@@ -302,7 +299,7 @@ function drawTutorialOverlay(
     ctx.restore()
 
     drawTutorialTooltip(
-      ctx, W / 2, 68,
+      ctx, W / 2, 46,
       'Prepara el plato',
       'Mira el pedido del cliente y selecciona sus ingredientes →'
     )
@@ -322,7 +319,7 @@ function drawTutorialOverlay(
     ctx.restore()
 
     drawTutorialTooltip(
-      ctx, W / 2, 68,
+      ctx, W / 2, 46,
       '¡Plato listo! ↙',
       'Toca la mesa del cliente para servir el plato'
     )
@@ -972,6 +969,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
 
       drawBackdrop(ctx, stageBackgroundRef.current)
       drawZones(ctx)
+      drawStageSign(ctx, logoSpriteRef.current)
 
       const difficulty = getDifficultyState(state.elapsedMs)
       state.buttonMap = []
@@ -1353,10 +1351,10 @@ function drawZones(ctx: CanvasRenderingContext2D) {
 function drawStageSign(ctx: CanvasRenderingContext2D, logoSprite: HTMLImageElement | null) {
   if (!logoSprite || !logoSprite.complete || logoSprite.naturalWidth <= 0) return
 
-  const signX = 530
-  const signY = 104
-  const signW = 176
-  const signH = 54
+  const signX = 492
+  const signY = 46
+  const signW = 160
+  const signH = 48
   const logoPadding = 2
   const logoW = signW - logoPadding * 2
   const logoH = logoW * (logoSprite.naturalHeight / logoSprite.naturalWidth)
@@ -1863,14 +1861,14 @@ function drawStation(
   ctx.save()
 
   const panelX = 455
-  const panelY = 200
+  const panelY = 238
   const panelW = 168
   const panelH = 148
   const plateCenterX = panelX + panelW / 2
-  const plateCenterY = 305
-  const titleY = 218
-  const subtitleY = 234
-  const helperY = 364
+  const plateCenterY = 320
+  const titleY = 256
+  const subtitleY = 272
+  const helperY = 400
 
   ctx.fillStyle = 'rgba(17,11,10,0.9)'
   ctx.beginPath()
@@ -1926,7 +1924,7 @@ function drawStation(
     )
   }
 
-  const chipBaseY = 297
+  const chipBaseY = 312
   state.plate.forEach((ingredientId, index) => {
     const isLeftColumn = index < 2
     const x = isLeftColumn ? panelX + 22 : panelX + panelW - 20
