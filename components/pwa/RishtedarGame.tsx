@@ -20,32 +20,32 @@ import {
 } from '@/lib/game/rishtedarGameData'
 
 const W = 960
-const H = 540
-const HUD_H = 68
-const STAGE_Y = 88
+const H = 480
 const LIVES_MAX = 3
-const TABLE_W = 188
-const TABLE_H = 148
+const TABLE_W = 176
+const TABLE_H = 128
 const TABLE_SLOTS = [
-  { x: 146, y: 198 },
-  { x: 352, y: 198 },
-  { x: 146, y: 370 },
-  { x: 352, y: 370 },
+  { x: 130, y: 74 },
+  { x: 326, y: 74 },
+  { x: 130, y: 239 },
+  { x: 326, y: 239 },
+  { x: 130, y: 404 },
+  { x: 326, y: 404 },
 ] as const
-const INGREDIENT_TRAY = { x: 650, y: 118, w: 286, h: 336, radius: 26 } as const
+const INGREDIENT_TRAY = { x: 650, y: 4, w: 286, h: 472, radius: 26 } as const
 const INGREDIENT_SLOTS = [
-  { x: 706, y: 170 },
-  { x: 798, y: 170 },
-  { x: 890, y: 170 },
-  { x: 706, y: 278 },
-  { x: 798, y: 278 },
-  { x: 890, y: 278 },
-  { x: 706, y: 386 },
-  { x: 798, y: 386 },
-  { x: 890, y: 386 },
+  { x: 706, y: 104 },
+  { x: 798, y: 104 },
+  { x: 890, y: 104 },
+  { x: 706, y: 240 },
+  { x: 798, y: 240 },
+  { x: 890, y: 240 },
+  { x: 706, y: 376 },
+  { x: 798, y: 376 },
+  { x: 890, y: 376 },
 ] as const
-const CLEAR_BUTTON = { x: 532, y: 428, w: 122, h: 30 }
-const SERVE_HINT = { x: 532, y: 474, w: 286, h: 34 }
+const CLEAR_BUTTON = { x: 540, y: 388, w: 130, h: 28 }
+const SERVE_HINT = { x: 540, y: 448, w: 290, h: 28 }
 
 type Phase = 'idle' | 'playing' | 'game-over'
 type FloaterTone = 'good' | 'bad' | 'warn'
@@ -148,7 +148,7 @@ function initialRunState(): RunState {
     dishesServed: 0,
     elapsedMs: 0,
     spawnTimerMs: 1200,
-    customers: [null, null, null, null],
+    customers: [null, null, null, null, null, null],
     plate: [],
     plateMatch: null,
     platePulse: 0,
@@ -183,7 +183,8 @@ function getDifficultyState(elapsedMs: number): GameDifficultyState {
 function getMaxCustomers(tier: DifficultyTier): number {
   if (tier === 1) return 2
   if (tier === 2) return 3
-  return 4
+  if (tier === 3) return 5
+  return 6
 }
 
 function getRecipeWeight(recipe: RecipeDefinition, complexityWeight: number): number {
@@ -353,6 +354,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   const [muted, setMuted] = useState(false)
   const [viewportSize, setViewportSize] = useState({ width: W, height: H })
   const [stageSize, setStageSize] = useState({ width: W, height: H })
+  const [hudStats, setHudStats] = useState({ score: 0, combo: 0, lives: LIVES_MAX, tier: 1 as DifficultyTier })
 
   const isPortraitViewport = viewportSize.height > viewportSize.width
   const isCompactViewport = viewportSize.width < 980 || viewportSize.height < 760
@@ -760,6 +762,16 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   }, [isFullscreen])
 
   useEffect(() => {
+    if (phase !== 'playing') return
+    const iv = setInterval(() => {
+      const s = stateRef.current
+      const diff = getDifficultyState(s.elapsedMs)
+      setHudStats({ score: s.score, combo: s.combo, lives: s.lives, tier: diff.tier })
+    }, 120)
+    return () => clearInterval(iv)
+  }, [phase])
+
+  useEffect(() => {
     const audio = backgroundMusicRef.current
     if (!audio) return
 
@@ -960,7 +972,6 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
 
       drawBackdrop(ctx, stageBackgroundRef.current)
       drawZones(ctx)
-      drawStageSign(ctx, logoSpriteRef.current)
 
       const difficulty = getDifficultyState(state.elapsedMs)
       state.buttonMap = []
@@ -975,7 +986,6 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
       drawChef(ctx, state, chefSpritesRef.current)
       drawStation(ctx, state, ingredientSpritesRef.current, recipeSpritesRef.current)
       drawIngredientTray(ctx, state, ingredientSpritesRef.current)
-      drawHud(ctx, state, difficulty)
       drawFloaters(ctx, state)
 
       if (state.flashGood > 0) {
@@ -1049,6 +1059,19 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
           </button>
         </div>
       </div>
+      )}
+
+      {phase === 'playing' && (
+        <div className="flex shrink-0 items-center gap-3 border-b border-[#3a1f12] bg-[rgba(12,8,7,0.88)] px-4 py-1 text-xs">
+          <span className="font-bold text-[#fff5e8]">{hudStats.score.toLocaleString('es-CL')} pts</span>
+          <span className="text-[#f1b865] tracking-[0.15em]">Fase {hudStats.tier}</span>
+          <div className="flex gap-0.5 text-base leading-none">
+            {Array.from({ length: LIVES_MAX }, (_, i) => (
+              <span key={i} style={{ opacity: i < hudStats.lives ? 1 : 0.2 }} className="text-red-400">♥</span>
+            ))}
+          </div>
+          {hudStats.combo > 1 && <span className="text-[#c9952a] font-semibold">×{hudStats.combo}</span>}
+        </div>
       )}
 
       <div
@@ -1299,13 +1322,13 @@ function drawBackdrop(ctx: CanvasRenderingContext2D, backgroundImage: HTMLImageE
 function drawZones(ctx: CanvasRenderingContext2D) {
   ctx.save()
 
-  const kitchenGradient = ctx.createLinearGradient(0, STAGE_Y, 0, H - 84)
+  const kitchenGradient = ctx.createLinearGradient(0, 0, 0, H)
   kitchenGradient.addColorStop(0, 'rgba(34, 18, 12, 0.28)')
   kitchenGradient.addColorStop(1, 'rgba(16, 10, 8, 0.16)')
   ctx.fillStyle = kitchenGradient
-  ctx.fillRect(18, STAGE_Y, 610, H - STAGE_Y - 100)
+  ctx.fillRect(18, 4, 610, H - 8)
 
-  const trayGradient = ctx.createLinearGradient(650, STAGE_Y, 936, H - 84)
+  const trayGradient = ctx.createLinearGradient(650, 0, 936, H)
   trayGradient.addColorStop(0, 'rgba(46, 24, 18, 0.56)')
   trayGradient.addColorStop(1, 'rgba(24, 14, 12, 0.72)')
   ctx.fillStyle = trayGradient
@@ -1322,7 +1345,7 @@ function drawZones(ctx: CanvasRenderingContext2D) {
   ctx.fillStyle = 'rgba(201,149,42,0.6)'
   ctx.font = '600 11px sans-serif'
   ctx.textAlign = 'left'
-  ctx.fillText('INGREDIENTES', 682, 114)
+  ctx.fillText('INGREDIENTES', 682, 36)
 
   ctx.restore()
 }
@@ -1487,14 +1510,15 @@ function drawTables(
     const customer = state.customers[index]
     const cardX = slot.x - TABLE_W / 2
     const cardY = slot.y - TABLE_H / 2
-    const textCenterX = slot.x
-    const bowlX = cardX + 148
-    const customerX = cardX + 34
-    const customerY = cardY + 102
     const patienceWidth = TABLE_W - 20
     const patienceX = cardX + 10
-    const patienceY = cardY + 56
-    const badgeY = cardY + 128
+    const patienceY = cardY + 50
+    const customerX = slot.x
+    const customerY = cardY + 87
+    const badgeY = cardY + 116
+    const badgeSpacing = 28
+    const badgeRadius = 9
+    const badgeSize = 18
 
     const baseGradient = ctx.createLinearGradient(cardX, cardY, cardX, cardY + TABLE_H)
     baseGradient.addColorStop(0, customer ? 'rgba(60,28,19,0.92)' : 'rgba(29,17,13,0.75)')
@@ -1523,10 +1547,10 @@ function drawTables(
       ctx.fillStyle = 'rgba(201,149,42,0.35)'
       ctx.font = '600 12px sans-serif'
       ctx.textAlign = 'center'
-      ctx.fillText('Mesa lista', slot.x, slot.y - 4)
+      ctx.fillText('Mesa lista', slot.x, slot.y - 8)
       ctx.fillStyle = 'rgba(214, 195, 176, 0.4)'
       ctx.font = '11px sans-serif'
-      ctx.fillText('Esperando cliente', slot.x, slot.y + 22)
+      ctx.fillText('Esperando cliente', slot.x, slot.y + 12)
       state.buttonMap.push({ key: String(index), x: slot.x, y: slot.y, radius: 70, type: 'table' })
       return
     }
@@ -1535,45 +1559,38 @@ function drawTables(
     ctx.textAlign = 'center'
     ctx.fillStyle = '#fff5e8'
     ctx.font = '700 11px sans-serif'
-    ctx.fillText(customer.recipe.name, textCenterX, cardY + 27)
+    ctx.fillText(customer.recipe.name, slot.x, cardY + 27)
     ctx.fillStyle = 'rgba(244,217,187,0.72)'
     ctx.font = '9px sans-serif'
-    ctx.fillText(recipePreview, textCenterX, cardY + 42)
+    ctx.fillText(recipePreview, slot.x, cardY + 42)
 
     ctx.fillStyle = 'rgba(255,255,255,0.08)'
     ctx.beginPath()
-    ctx.roundRect(patienceX, patienceY, patienceWidth, 8, 8)
+    ctx.roundRect(patienceX, patienceY, patienceWidth, 6, 6)
     ctx.fill()
 
     const patienceColor =
       customer.patience > 0.58 ? '#62d9a0' : customer.patience > 0.32 ? '#f0b24a' : '#de6947'
     ctx.fillStyle = patienceColor
     ctx.beginPath()
-    ctx.roundRect(patienceX, patienceY, patienceWidth * Math.max(0, customer.patience), 8, 8)
+    ctx.roundRect(patienceX, patienceY, patienceWidth * Math.max(0, customer.patience), 6, 6)
     ctx.fill()
 
     drawCustomer(ctx, customerX, customerY, index, customer.mood, customer.pulse, customerPortraits)
-    drawCompactRecipeCard(ctx, bowlX, cardY + 86, customer.recipe, recipeSprites[customer.recipe.id])
 
+    const numIngredients = customer.recipe.ingredients.length
+    const badgeStartX = slot.x - ((numIngredients - 1) * badgeSpacing) / 2
     customer.recipe.ingredients.forEach((ingredientId, ingredientIndex) => {
-      const chipX = cardX + 96 + ingredientIndex * 32
       drawIngredientBadge(
         ctx,
         ingredientSprites[ingredientId],
         ingredientId,
-        chipX,
+        badgeStartX + ingredientIndex * badgeSpacing,
         badgeY,
-        32,
-        16
+        badgeSize,
+        badgeRadius
       )
     })
-
-    if (customer.mood === 'impatient') {
-      ctx.fillStyle = 'rgba(234,115,70,0.9)'
-      ctx.font = 'bold 12px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.fillText('¡Ya!', textCenterX, cardY + TABLE_H - 8)
-    }
 
     state.buttonMap.push({ key: String(index), x: slot.x, y: slot.y, radius: 70, type: 'table' })
   })
@@ -1608,15 +1625,15 @@ function drawCustomer(
   const portrait = customerPortraits[index % customerPortraits.length]
 
   if (portrait && portrait.complete && portrait.naturalWidth > 0) {
-    const drawHeight = 74
+    const drawHeight = 50
     const drawWidth = (portrait.naturalWidth / portrait.naturalHeight) * drawHeight
-    const eyebrowY = -23
-    const mouthY = -2
+    const eyebrowY = -18
+    const mouthY = 0
 
     ctx.save()
     ctx.translate(x, y + bob)
     ctx.imageSmoothingEnabled = false
-    ctx.drawImage(portrait, -drawWidth / 2, -35, drawWidth, drawHeight)
+    ctx.drawImage(portrait, -drawWidth / 2, -25, drawWidth, drawHeight)
 
     ctx.strokeStyle = mood === 'impatient' ? '#3b1c17' : '#2b1b14'
     ctx.lineWidth = mood === 'impatient' ? 2.5 : 2
@@ -1709,7 +1726,7 @@ function drawChef(
     const drawWidth = (sprite.naturalWidth / sprite.naturalHeight) * drawHeight
 
     ctx.save()
-    ctx.translate(540, 210 + bob)
+    ctx.translate(492, 155 + bob)
     ctx.imageSmoothingEnabled = false
     ctx.drawImage(sprite, -drawWidth / 2, -drawHeight / 2 - 8, drawWidth, drawHeight)
     ctx.restore()
@@ -1717,7 +1734,7 @@ function drawChef(
   }
 
   ctx.save()
-  ctx.translate(540, 170 + bob)
+  ctx.translate(492, 115 + bob)
 
   const coatColor = mood === 'happy' ? '#406d50' : mood === 'busy' ? '#8f5439' : '#b63f32'
   const apronColor = mood === 'happy' ? '#eadfcd' : mood === 'busy' ? '#f0d7c2' : '#f2cdc4'
@@ -1845,15 +1862,15 @@ function drawStation(
 ) {
   ctx.save()
 
-  const panelX = 452
-  const panelY = 300
-  const panelW = 156
-  const panelH = 128
+  const panelX = 455
+  const panelY = 200
+  const panelW = 168
+  const panelH = 148
   const plateCenterX = panelX + panelW / 2
-  const plateCenterY = 364
-  const titleY = 316
-  const subtitleY = 332
-  const helperY = 402
+  const plateCenterY = 305
+  const titleY = 218
+  const subtitleY = 234
+  const helperY = 364
 
   ctx.fillStyle = 'rgba(17,11,10,0.9)'
   ctx.beginPath()
@@ -1909,7 +1926,7 @@ function drawStation(
     )
   }
 
-  const chipBaseY = 356
+  const chipBaseY = 297
   state.plate.forEach((ingredientId, index) => {
     const isLeftColumn = index < 2
     const x = isLeftColumn ? panelX + 22 : panelX + panelW - 20
@@ -2083,82 +2100,6 @@ function drawOrderBowl(
   ctx.restore()
 }
 
-function drawHud(ctx: CanvasRenderingContext2D, state: RunState, difficulty: GameDifficultyState) {
-  ctx.save()
-
-  const hudGradient = ctx.createLinearGradient(0, 6, 0, HUD_H + 10)
-  hudGradient.addColorStop(0, 'rgba(12,8,7,0.62)')
-  hudGradient.addColorStop(1, 'rgba(20,11,9,0.38)')
-  ctx.fillStyle = hudGradient
-  ctx.beginPath()
-  ctx.roundRect(12, 8, W - 24, HUD_H - 6, 18)
-  ctx.fill()
-  ctx.strokeStyle = 'rgba(201,149,42,0.16)'
-  ctx.lineWidth = 1
-  ctx.beginPath()
-  ctx.roundRect(12, 8, W - 24, HUD_H - 6, 18)
-  ctx.stroke()
-
-  ctx.fillStyle = '#fff5e8'
-  ctx.font = '700 24px sans-serif'
-  ctx.textAlign = 'left'
-  ctx.fillText(state.score.toLocaleString('es-CL'), 28, 38)
-  ctx.fillStyle = 'rgba(244,217,187,0.6)'
-  ctx.font = '11px sans-serif'
-  ctx.fillText('PTS', 28, 55)
-
-  ctx.fillStyle = '#f1b865'
-  ctx.font = '700 18px sans-serif'
-  ctx.fillText(`Combo x${Math.max(1, state.combo)}`, 182, 39)
-  ctx.fillStyle = 'rgba(244,217,187,0.62)'
-  ctx.font = '11px sans-serif'
-  ctx.fillText(`Max x${state.maxCombo}`, 182, 56)
-
-  ctx.fillStyle = '#f4d9bb'
-  ctx.font = '600 13px sans-serif'
-  ctx.textAlign = 'center'
-  ctx.fillText(`Fase ${difficulty.tier}`, 502, 28)
-  ctx.fillStyle = 'rgba(244,217,187,0.62)'
-  ctx.font = '11px sans-serif'
-  ctx.fillText(
-    difficulty.tier === 1
-      ? 'Servicio suave'
-      : difficulty.tier === 2
-        ? 'Sube la presión'
-        : difficulty.tier === 3
-          ? 'Rush de cocina'
-          : 'Caos controlado',
-    502,
-    50
-  )
-
-  ctx.textAlign = 'right'
-  for (let i = 0; i < LIVES_MAX; i += 1) {
-    ctx.globalAlpha = i < state.lives ? 1 : 0.18
-    ctx.font = '20px serif'
-    ctx.fillText('❤', 920 - i * 22, 38)
-  }
-  ctx.globalAlpha = 1
-  ctx.fillStyle = 'rgba(244,217,187,0.62)'
-  ctx.font = '11px sans-serif'
-  ctx.fillText('Vidas', 920, 55)
-
-  const activeCount = state.customers.filter(Boolean).length
-  ctx.fillStyle = 'rgba(255,255,255,0.08)'
-  ctx.beginPath()
-  ctx.roundRect(640, 22, 150, 11, 10)
-  ctx.fill()
-  ctx.fillStyle = '#62d9a0'
-  ctx.beginPath()
-  ctx.roundRect(640, 22, 150 * (activeCount / getMaxCustomers(difficulty.tier || 1)), 11, 10)
-  ctx.fill()
-  ctx.fillStyle = 'rgba(244,217,187,0.72)'
-  ctx.font = '10px sans-serif'
-  ctx.textAlign = 'left'
-  ctx.fillText('MESAS OCUPADAS', 640, 50)
-
-  ctx.restore()
-}
 
 function drawFloaters(ctx: CanvasRenderingContext2D, state: RunState) {
   ctx.save()
