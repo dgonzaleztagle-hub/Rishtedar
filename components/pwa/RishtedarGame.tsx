@@ -1511,10 +1511,11 @@ function drawTables(
     const patienceWidth = TABLE_W - 20
     const patienceX = cardX + 10
     const patienceY = cardY + 50
-    const customerX = slot.x
+    const customerX = cardX + 34
     const customerY = cardY + 87
+    const bowlX = cardX + 142
     const badgeY = cardY + 116
-    const badgeSpacing = 28
+    const badgeSpacing = 26
     const badgeRadius = 9
     const badgeSize = 18
 
@@ -1575,6 +1576,7 @@ function drawTables(
     ctx.fill()
 
     drawCustomer(ctx, customerX, customerY, index, customer.mood, customer.pulse, customerPortraits)
+    drawCompactRecipeCard(ctx, bowlX, cardY + 80, customer.recipe, recipeSprites[customer.recipe.id])
 
     const numIngredients = customer.recipe.ingredients.length
     const badgeStartX = slot.x - ((numIngredients - 1) * badgeSpacing) / 2
@@ -1605,7 +1607,7 @@ function drawCompactRecipeCard(
 ) {
   ctx.save()
 
-  drawOrderBowl(ctx, x, y, recipe, recipeSprite, 0.96, 56, 48)
+  drawOrderBowl(ctx, x, y, recipe, recipeSprite, 0.96, 46, 38)
 
   ctx.restore()
 }
@@ -1987,31 +1989,31 @@ function drawIngredientTray(
     const selected = state.plate.includes(ingredient.id)
     ctx.fillStyle = selected ? blendAlpha(ingredient.fill, 'f1') : blendAlpha(ingredient.fill, 'b2')
     ctx.beginPath()
-    ctx.arc(slot.x, slot.y, selected ? 39 : 35, 0, Math.PI * 2)
+    ctx.arc(slot.x, slot.y, selected ? 43 : 39, 0, Math.PI * 2)
     ctx.fill()
 
-    const gloss = ctx.createRadialGradient(slot.x - 10, slot.y - 10, 3, slot.x, slot.y, 40)
+    const gloss = ctx.createRadialGradient(slot.x - 10, slot.y - 10, 3, slot.x, slot.y, 44)
     gloss.addColorStop(0, selected ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.24)')
     gloss.addColorStop(1, 'rgba(255,255,255,0)')
     ctx.fillStyle = gloss
     ctx.beginPath()
-    ctx.arc(slot.x, slot.y, 35, 0, Math.PI * 2)
+    ctx.arc(slot.x, slot.y, 39, 0, Math.PI * 2)
     ctx.fill()
 
     ctx.strokeStyle = selected ? 'rgba(255,245,232,0.95)' : 'rgba(255,245,232,0.32)'
     ctx.lineWidth = selected ? 3 : 1.5
     ctx.beginPath()
-    ctx.arc(slot.x, slot.y, selected ? 39 : 35, 0, Math.PI * 2)
+    ctx.arc(slot.x, slot.y, selected ? 43 : 39, 0, Math.PI * 2)
     ctx.stroke()
 
-    drawIngredientShortTag(ctx, ingredient.id, slot.x, slot.y - 28)
+    drawIngredientShortTag(ctx, ingredient.id, slot.x, slot.y - 32)
 
     const drewSprite = drawIngredientSprite(
       ctx,
       ingredientSprites[ingredient.id],
       slot.x,
       slot.y - 1,
-      selected ? 44 : 40
+      selected ? 50 : 46
     )
 
     if (!drewSprite) {
@@ -2025,9 +2027,9 @@ function drawIngredientTray(
     ctx.font = '600 9px sans-serif'
     const firstLine = ingredient.label.length > 12 ? ingredient.label.split(' ')[0] : ingredient.label
     const secondLine = ingredient.label.length > 12 ? ingredient.label.split(' ').slice(1).join(' ') : ''
-    ctx.fillText(firstLine, slot.x, slot.y + 52)
+    ctx.fillText(firstLine, slot.x, slot.y + 56)
     if (secondLine) {
-      ctx.fillText(secondLine, slot.x, slot.y + 64)
+      ctx.fillText(secondLine, slot.x, slot.y + 68)
     }
 
     state.buttonMap.push({
