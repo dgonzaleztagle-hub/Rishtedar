@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { requireStaffSession } from '@/lib/auth/session'
 import type { Driver } from '@/types'
 
 // GET /api/drivers?business_id=xxx
 // Lista todos los drivers de una sucursal
 export async function GET(req: NextRequest) {
+  const auth = await requireStaffSession()
+  if (!auth.ok) return auth.response
   const { searchParams } = new URL(req.url)
   const business_id = searchParams.get('business_id')
 
@@ -31,6 +34,8 @@ export async function GET(req: NextRequest) {
 // POST /api/drivers
 // Crea un nuevo driver
 export async function POST(req: NextRequest) {
+  const auth = await requireStaffSession()
+  if (!auth.ok) return auth.response
   try {
     const body = await req.json()
     const { business_id, name, phone, vehicle, zone } = body
@@ -67,6 +72,8 @@ export async function POST(req: NextRequest) {
 // PATCH /api/drivers?id=xxx
 // Toggle is_active
 export async function PATCH(req: NextRequest) {
+  const auth = await requireStaffSession()
+  if (!auth.ok) return auth.response
   const { searchParams } = new URL(req.url)
   const id = searchParams.get('id')
 

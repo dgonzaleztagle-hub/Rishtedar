@@ -1,7 +1,13 @@
 import type { Metadata, Viewport } from 'next'
 import { Cormorant_Garamond, Inter } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
 import { Toaster } from 'sonner'
+import { PromotionalBannerPopup } from '@/components/PromotionalBannerPopup'
+import { AnalyticsProvider } from '@/components/analytics/AnalyticsProvider'
+
+const GA4_ID  = process.env.NEXT_PUBLIC_GA4_ID   // G-XXXXXXXXXX — pendiente cliente
+const META_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID // XXXXXXXXXXXXXXXX — pendiente cliente
 
 const cormorant = Cormorant_Garamond({
   variable: '--font-cormorant',
@@ -97,8 +103,42 @@ export default function RootLayout({
       className={`${cormorant.variable} ${inter.variable} h-full antialiased`}
       data-scroll-behavior="smooth"
     >
+      <head>
+        {/* GA4 — activar cuando cliente entregue Measurement ID */}
+        {GA4_ID && (
+          <>
+            <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA4_ID}`} strategy="afterInteractive" />
+            <Script id="ga4-init" strategy="afterInteractive">{`
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${GA4_ID}', { send_page_view: false });
+            `}</Script>
+          </>
+        )}
+        {/* Meta Pixel — activar cuando cliente entregue Pixel ID */}
+        {META_ID && (
+          <Script id="meta-pixel" strategy="afterInteractive">{`
+            !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+            n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+            n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+            t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+            document,'script','https://connect.facebook.net/en_US/fbevents.js');
+            fbq('init', '${META_ID}');
+          `}</Script>
+        )}
+        {/* Banner typography — loaded via <link> to avoid PostCSS @import ordering issues */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Yatra+One&family=Baloo+2:wght@400;600;700&family=Rozha+One&family=Tillana:wght@400;600;700&family=Hind:wght@400;600;700&family=Mukta:wght@400;600;700&family=Playfair+Display:wght@600;700&family=Montserrat:wght@400;600;700&family=Poppins:wght@400;500;600;700&family=DM+Sans:wght@400;500;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-ivory text-warm-950">
+        <AnalyticsProvider />
         {children}
+        <PromotionalBannerPopup />
         <Toaster
           position="bottom-right"
           toastOptions={{

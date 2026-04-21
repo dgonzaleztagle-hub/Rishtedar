@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { requireStaffSession } from '@/lib/auth/session'
 
 // GET /api/promotions — list all (dashboard CMS)
 export async function GET() {
@@ -19,6 +20,8 @@ export async function GET() {
 
 // POST /api/promotions — create
 export async function POST(req: NextRequest) {
+  const auth = await requireStaffSession()
+  if (!auth.ok) return auth.response
   try {
     const body = await req.json()
     const supabase = await createAdminClient()
@@ -35,17 +38,22 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH /api/promotions — toggle active
+// PATCH /api/promotions — toggle active OR full update (edit)
 export async function PATCH(req: NextRequest) {
+  const auth = await requireStaffSession()
+  if (!auth.ok) return auth.response
   try {
-    const { id, is_active } = await req.json()
+    const { id, ...fields } = await req.json()
+    if (!id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
     const supabase = await createAdminClient()
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('promotions')
-      .update({ is_active })
+      .update(fields)
       .eq('id', id)
+      .select()
+      .single()
     if (error) throw error
-    return NextResponse.json({ ok: true })
+    return NextResponse.json(data)
   } catch (err) {
     console.error('[promotions PATCH]', err)
     return NextResponse.json({ error: 'Error al actualizar' }, { status: 500 })
@@ -54,6 +62,8 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE /api/promotions — delete
 export async function DELETE(req: NextRequest) {
+  const auth = await requireStaffSession()
+  if (!auth.ok) return auth.response
   try {
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')

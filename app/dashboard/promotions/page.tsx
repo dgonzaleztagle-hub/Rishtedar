@@ -13,7 +13,7 @@ export default function PromotionsPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-semibold text-warm-900">Promociones</h1>
-          <p className="text-warm-500 text-sm mt-1">Gestiona descuentos activos y futuros</p>
+          <p className="text-warm-500 text-sm mt-1">Gestiona descuentos activos y banners promocionales</p>
         </div>
         <PromotionsCMS />
       </div>

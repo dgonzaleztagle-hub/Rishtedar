@@ -42,20 +42,38 @@ export async function POST(req: NextRequest) {
     const token = crypto.randomUUID()
     const driverUrl = `${APP_URL}/driver/${token}`
 
-    // 4. Upsert en delivery_tracking
-    const { error: trackingError } = await supabase
+    // 4. Insertar o actualizar delivery_tracking sin depender de UNIQUE constraint
+    const { data: existingTracking } = await supabase
       .from('delivery_tracking')
-      .upsert(
-        {
-          order_id,
-          driver_id,
-          driver_name: driver.name,
-          driver_phone: driver.phone,
-          driver_token: token,
-          status: 'assigned',
-        },
-        { onConflict: 'order_id' }
-      )
+      .select('id')
+      .eq('order_id', order_id)
+      .maybeSingle()
+
+    const trackingPayload = {
+      driver_name:  driver.name,
+      driver_phone: driver.phone,
+      driver_token: token,
+      status:       'assigned',
+      // driver_id solo si la columna existe (post-migration)
+      ...(driver_id ? { driver_id } : {}),
+    }
+
+    let trackingError
+
+    if (existingTracking) {
+      // Ya existe un tracking para esta orden → actualizar
+      const { error } = await supabase
+        .from('delivery_tracking')
+        .update(trackingPayload)
+        .eq('order_id', order_id)
+      trackingError = error
+    } else {
+      // Primera asignación → insertar
+      const { error } = await supabase
+        .from('delivery_tracking')
+        .insert({ order_id, ...trackingPayload })
+      trackingError = error
+    }
 
     if (trackingError) throw trackingError
 

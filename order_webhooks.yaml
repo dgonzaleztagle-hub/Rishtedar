@@ -1,0 +1,95 @@
+order_status_changed:
+  post:
+    tags:
+      - WebHooks
+    summary: Monitoreo del estado de la orden
+    description: |
+      Aparte del servicio via GET para recuperar el estado de la orden se ha habilitado también 
+      la posibilidad de disparar un webhook via POST, con la finalidad de monitorear el estado de la orden. 
+      Esta llamaría a un servicio del lado del sistema que se está integrando a Toteat y tendrá contenido 
+      formateado como application/json en utf-8.
+
+
+      ### Configuración Específica para este Webhook:
+
+
+      #### Nivel de detalle de la orden a enviar:
+        En la configuración del webhook, seleccionar en **"Nivel de detalle del Pedido a enviar:"**:
+      
+        - **"Solo el estado del pedido y encabezados"**: el payload contendrá solo información básica del estado de la orden. Sigue el esquema `BasicOrderStatus`.
+
+        - **"Detalles completos del pedido"**: el payload contendrá información completa de la orden, incluyendo detalles de productos, pagos, etc. Sigue el esquema `OrderExpanded`.
+
+        - **"Detalles completos del pedido (Delivery)"**: el payload contendrá información optimizada para procesamiento de despachos, con estructura específica para órdenes de delivery. Sigue el esquema `DeliveryOrderPayload`.
+
+        <img src="./assets/9.png" />
+
+
+      #### ¿Cuándo se Dispara?
+        - Cambios de estado de la orden
+        - Actualizaciones de productos en la orden
+        - Cambios en información de delivery
+        - Modificaciones en pagos
+      
+      #### Alcance del Webhook:
+        El webhook se enviará únicamente para aquellas órdenes que fueron creadas a través de la misma API 
+        en la que se configuró el webhook. 
+
+        Si se requiere recibir notificaciones de **cualquier orden del local** (independiente del canal 
+        por el que fue creada), se debe solicitar a **Soporte** la activación de la opción de 
+        **Webhook Global**. Esta opción solo podrá ser habilitada para una única API estándar configurada 
+        en el local y el payload seguirá el mismo formato definido en la configuración del webhook de ordenes.
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/BasicOrderStatus'
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/OrderExpanded'
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/DeliveryOrderPayload'
+                description: |
+                  Orden con el nivel de detalle configurado:
+                  - BasicOrderStatus: Solo estado y encabezados
+                  - OrderExpanded: Detalles completos del pedido
+                  - DeliveryOrderPayload: Información enfocada para delivery
+              ok:
+                type: boolean
+                example: true
+                description: Indica si la operación fue exitosa
+              time:
+                type: string
+                format: date-time
+                example: "2025-08-20T17:07:50Z"
+                description: Timestamp de cuando se generó la notificación
+              api:
+                type: string
+                example: "1.0"
+                description: Versión de la API de webhooks
+              msg:
+                type: object
+                properties:
+                  texto:
+                    type: string
+                    example: "Order change sent."
+                    description: Mensaje descriptivo de la notificación
+                  tipo:
+                    type: integer
+                    example: 1
+                    description: Tipo de mensaje
+              restaurantId:
+                type: integer
+                example: 6498071199350784
+                description: ID del restaurante que generó la notificación
+              localNumber:
+                type: integer
+                example: 1
+                description: Número del local que generó la notificación

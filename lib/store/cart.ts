@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CartItem, MenuItem, Promotion } from '@/types'
+import { trackEvent } from '@/lib/analytics/tracker'
 
 interface CartState {
   items: CartItem[]
@@ -45,12 +46,25 @@ export const useCartStore = create<CartState>()(
             items: [...state.items, { menu_item: item, quantity: qty, special_instructions: instructions }],
           }
         })
+        trackEvent('add_to_cart', {
+          item_id: item.id,
+          item_name: item.name,
+          price: item.price,
+          quantity: qty,
+        }, get().businessId ?? undefined)
       },
 
       removeItem: (menuItemId) => {
+        const removed = get().items.find(i => i.menu_item.id === menuItemId)
         set(state => ({
           items: state.items.filter(i => i.menu_item.id !== menuItemId),
         }))
+        if (removed) {
+          trackEvent('remove_from_cart', {
+            item_id: removed.menu_item.id,
+            item_name: removed.menu_item.name,
+          }, get().businessId ?? undefined)
+        }
       },
 
       updateQty: (menuItemId, qty) => {

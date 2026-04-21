@@ -1,0 +1,128 @@
+openapi: 3.0.1
+info:
+  title: Api Toteat
+  version: 1.0
+  description: >
+    # Introducción
+
+    En Toteat tenemos un conjunto de APIs diseñados para poder extraer información generada en el POS a manera de que sistemas externos puedan integrarse a este para poder ofrecer valor a los clientes con soluciones alternativas.
+
+    
+    NOTA: Una API es una interfaz de programación de aplicaciones (del inglés API: Application Programming Interface). Es un conjunto de rutinas que provee acceso a funciones de un determinado software.
+
+
+    Este conjunto de APIs comprenden:
+      - Recuperar detalle del menú del restaurante
+      - Recuperar ventas de un período 
+      - Recuperar recaudación de un día
+      - Carga de órdenes externas 
+      - Recuperar estado del turno
+      - Recuperar estado y movimientos de inventario de un periodo
+      - Recuperar movimientos contables
+      - Obtener listado de mesas disponibles
+      - Consultar estado de órdenes específicas
+      - Reporte de ventas por mesero
+      - Reporte de órdenes canceladas
+      - Obtener documentos fiscales emitidos
+      - Registrar facturas de compra de ingredientes
+      - Notificar asignación de despacho externo
+
+    Además, se incluyen Webhooks para notificaciones automáticas de:
+      - Cambios en el estado de órdenes
+      - Cambios en el estado del turno
+      - Modificaciones en el menú del restaurante
+      - Transferencias de mercaderías multilocal
+
+    #### Nota sobre Campos Condicionales
+    
+    Si un campo en los esquemas de respuesta de la request o un campo en el payload enviado en los webhooks tiene un * (asterisco) quiere decir que son campos que solo funcionan para ambientes migrados al nuevo Toteat, no están disponibles en ambientes legacy.
+
+
+    ### Acceso a la api
+    
+    #### URLs Únicas por Ambiente (Recomendadas)
+
+    **Todos los clientes deben usar las nuevas URLs**, independientemente de si operan en el sistema Toteat Legacy o en el nuevo Toteat Migrado:
+
+      - **Producción**: `https://api.toteat.com/mw/or/1.0/`
+      - **Desarrollo**: `https://apidev.toteat.com/mw/or/1.0/`
+
+    #### Comportamiento del Sistema
+
+      - **Clientes en Toteat Migrado**: La request se procesa directamente en el sistema correspondiente
+      - **Clientes en Toteat Legacy**: El sistema redirecciona automáticamente la solicitud al ambiente legacy
+      - **Transparente para el usuario**: No es necesario conocer el tipo de ambiente del cliente
+
+    #### URLs Anteriores (Compatibilidad Limitada)
+
+    Las siguientes URLs anteriores mantienen compatibilidad **solo para ambientes no migrados**:
+
+      - **Producción**: `https://toteatglobal.appspot.com/mw/or/1.0/` → Solo para Legacy no migrado
+      - **Desarrollo**: `https://toteatdev.appspot.com/mw/or/1.0/` → Solo para Legacy no migrado
+
+    ⚠️ **Importante**: Si el ambiente está migrado al nuevo Toteat y se usan las URLs antiguas:
+      - Puede retornar información incompleta o inconsistente
+      - Algunos endpoints pueden no estar disponibles
+      - Podrían producirse errores de conexión o timeouts
+      - No se garantiza el funcionamiento correcto de las APIs
+
+    #### Recomendaciones
+      - **Implementar las URLs nuevas** para garantizar compatibilidad completa
+      - Las URLs antiguas deben considerarse obsoletas y solo para emergencias
+      - Migrar a las nuevas URLs lo antes posible para evitar problemas
+      - El sistema detecta automáticamente el ambiente correcto basado en las credenciales
+
+
+  x-logo:
+    url: "./assets/logo-toteat.png"
+servers:
+  -
+    url: "https://www.toteatdev.appspot.com/mw/or/1.0/"
+    description: Restaurants Integrations Public API
+
+paths:
+  /products:
+    $ref: './paths/products.yaml#/products'
+  /orderstatus:
+    $ref: './paths/orderstatus.yaml#/orderstatus'
+  /tables:
+    $ref: './paths/tables.yaml#/tables'
+  /shiftstatus:
+    $ref: './paths/shiftstatus.yaml#/shiftstatus'
+  /orders:
+    $ref: './paths/create_order.yaml#/orders'
+  /orders/dispatch:
+    $ref: './paths/update_order_dispatch.yaml#/orders_dispatch'
+  /sales:
+    $ref: './paths/sales.yaml#/sales'
+  /salesbywaiter:
+    $ref: './paths/salesbywaiter.yaml#/salesbywaiter'
+  /collection:
+    $ref: './paths/collection.yaml#/collection'
+  /orders/cancellation-report:
+    $ref: './paths/orders_cancellation_report.yaml#/orders_cancellation_report'
+  /fiscaldocuments:
+    $ref: './paths/fiscaldocuments.yaml#/fiscaldocuments'
+  /inventorystate:
+    $ref: './paths/inventorystate.yaml#/inventorystate'
+  /accountingmovements:
+    $ref: './paths/accountingmovements.yaml#/accountingmovements'
+  /purchasemovements:
+    $ref: './paths/create_purchase_movements.yaml#/purchasemovements'
+components:
+  $ref: './components/index.yaml'
+
+tags:
+  - $ref: './tags/config_tag.yaml'
+  - $ref: './tags/endpoints_tag.yaml'
+  - $ref: './tags/webhooks_tag.yaml'
+
+x-webhooks:
+  order_status_changed:
+    $ref: './webhooks/order_webhooks.yaml#/order_status_changed'
+  shifts_status_changed:
+    $ref: './webhooks/shift_webhooks.yaml#/shifts_status_changed'
+  menu_changed:
+    $ref: './webhooks/menu_webhooks.yaml#/menu_changed'
+  product_transfer:
+    $ref: './webhooks/transfer_webhooks.yaml#/product_transfer'

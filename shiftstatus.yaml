@@ -1,0 +1,55 @@
+shiftstatus:
+  get:
+    tags:
+      - Endpoints
+    parameters:
+    - name: xir
+      in: query
+      description: Identificador del restaurante
+      required: true
+      schema:
+        type: string
+    - name: xil
+      in: query
+      description: Identificador del local asociado al restaurante
+      required: true
+      schema:
+        type: string
+    - name: xiu
+      in: query
+      description: Identificador del usuario 
+      required: true
+      schema:
+        type: string
+    - name: xapitoken
+      in: query
+      description: Token habilitado para que la herramienta externa pueda consumir el API
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShiftsResult'
+        description: Success
+      '400':
+        $ref: '#/components/responses/InvalidCredentials'
+      '429':
+        $ref: '#/components/responses/TooManyRequests'
+
+    operationId: getShifts
+    summary: Estado de Turno
+    description: >-
+      Se ha habilitado un servicio en el API de Toteat para saber si el restaurante posee un turno abierto, que debe ser consumido via GET, este devolverá contenido formateado como application/json en utf-8.
+              En respuesta a la solicitud, se retornara un diccionario que contiene 3 campos:
+
+      - `msg`: contiene el mensaje de la solicitud realizada. 
+
+      - `ok`: señala si la solicitud fue exitosa
+
+      - `data`: Contiene la informacion relacionada a si existe algun turno abierto o no.
+
+      ### ⚠️ Límite de solicitudes
+        - 3 solicitudes por minuto

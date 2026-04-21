@@ -1,13 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { validateBranchToken } from '@/lib/staff-tokens'
 import type { ReservationStatus } from '@/types'
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { id, status } = await req.json() as { id: string; status: ReservationStatus }
+    const { id, status, token, branch } = await req.json() as {
+      id: string
+      status: ReservationStatus
+      token?: string
+      branch?: string
+    }
 
     if (!id || !status) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
+    }
+
+    // Si se proporciona token, validarlo contra la sucursal
+    if (token && branch) {
+      if (!validateBranchToken(branch, token)) {
+        return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+      }
     }
 
     const supabase = await createAdminClient()

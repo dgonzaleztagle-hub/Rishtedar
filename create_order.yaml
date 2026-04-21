@@ -1,0 +1,214 @@
+orders:
+  post:
+    tags:
+      - Endpoints
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NewOrder'
+          examples:
+            General:
+              value:
+                restaurantId: 1234567890123456
+                localNumber: 1
+                orderId: 510842919599244
+                orderReference: 239920349096764
+                status: new
+                type: delivery
+                channel: webstore
+                vendorName: EXAMPLE
+                comment: Comentario de orden
+                document: 
+                  deliveryDate: 2017-11-16T16:00:00
+                  comment: Comentario de delivery
+                  payments: 
+                    -
+                      id: 1510842919599444
+                      ref: 123818
+                      amount: 1200
+                      amountPaid: 1700
+                      tip: 200
+                      commission: 
+                        -
+                          name: deliveryCharge
+                          value: 300
+                      paymentType: 1000
+                      operationDate: 2017-11-16T14:59:40
+                      discount:
+                        -
+                          amount: 200
+                          amountString: "200"
+                          comment: "Comentario de descuento"
+                  line:
+                    -
+                      lineNumber: 1
+                      quantity: 1
+                      comment: 'Con Azucar'
+                      amountBeforeTax: 1176.47
+                      tax:
+                        -
+                          name: IVA
+                          value: 223.53
+                      amountAfterTax: 1400
+                      productCode: "1010"
+                      productName: ESPRESSO SIMPLE
+                      category: Coffee
+                      discount: 200
+                  customer:
+                    name: Carlos Zager
+                    phoneNumber: +56123456789
+                    phoneNumber2: +56987654321
+                    email: carlos@toteat.com
+                    fiscalId: 21652523-K
+                    isBusiness: false
+                    delivery:
+                      address: Espoz 2334
+                      city: Santiago
+                      country: Chile
+                      postalCode: 123456
+                  dispatcher:
+                    name: Pedro Perez
+                    phoneNumber: +56123123212
+                    phoneNumber2: +56123456123
+                    email: pedro@ejemplo.com
+                    vehicle: 
+                      type: car
+                      extraInfo: 
+                        licensePlate: XYZ-123
+                operationDate: 2017-11-16T14:59:00
+                modifiedDate: 2017-11-16T14:59:00
+      required: true
+    parameters:
+    - name: xir
+      in: query
+      description: Identificador del restaurante
+      required: true
+      schema:
+        type: string
+    - name: xil
+      in: query
+      description: Identificador del local asociado al restaurante
+      required: true
+      schema:
+        type: string
+    - name: xiu
+      in: query
+      description: Identificador del usuario 
+      required: true
+      schema:
+        type: string
+    - name: xapitoken
+      in: query
+      description: Token habilitado para que la herramienta externa pueda consumir el API
+      required: true
+      schema:
+        type: string
+    - name: orderDetail
+      in: query
+      required: false
+      description: Si es true, retorna detalle completo de la orden creada
+      schema:
+        type: boolean
+        example: true
+    responses:
+      '200':
+        description: Orden procesada exitosamente
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/BasicOrderResponse'
+                - $ref: '#/components/schemas/DetailedOrderResponse'
+      '400':
+        $ref: '#/components/responses/InvalidCredentials'
+      '429':
+        $ref: '#/components/responses/TooManyRequests'
+
+    operationId: postOrder
+    summary: Ingreso nueva orden en Toteat
+    description: >-
+      Se ha habilitado un servicio en el API de Toteat para dicho fin que debe ser consumido vía POST con contenido formateado como application/json en utf-8.
+      
+      ### Requisitos y Recomendaciones para Integración:
+      
+        - **Sincronización de productos**: Mantener alineado el menú con la base de datos de Toteat. 
+        Para ello pueden utilizar el endpoint `/products` para obtener el menú actualizado o usar el 
+        webhook de Toteat para recibir notificaciones de cambios en el menú.
+        - **Gestión de mesas**: Obtener mesas y su disponibilidad para órdenes en mesas físicas. Pueden usar el endpoint `/tables` para obtener los IDs de mesa y disponibilidad.
+        - **Estado del turno**: Verificar que el turno esté abierto antes de ingresar órdenes. Pueden usar el endpoint `/shiftstatus` para consultar el estado del turno o usar el webhook de Toteat para recibir notificaciones de disponibilidad de turnos.
+        - **Monitoreo opcional**: Seguimiento de estados y cambios en los pedidos mediante los webhooks disponibles en Toteat
+      
+      ### Manejo de Extras:
+
+
+      Para agregar extras, se colocan como un producto normal, pero es importante respetar el orden. 
+      Los extras serán asignados al producto previo (que no pertenezca a la categoría extra).
+      
+
+      **Ejemplo**: 
+
+
+        ```json
+        {
+          "line": [
+            {"productCode": "hamburguesa", "quantity": 1},
+            {"productCode": "tomate", "quantity": 1},
+            {"productCode": "palta", "quantity": 1},
+            {"productCode": "pizza", "quantity": 1}
+          ]
+        }
+        ```
+
+
+      Toteat asumirá que `tomate` y `palta` son agregados de `hamburguesa`.
+
+      ### Órdenes en Mesas Físicas:
+        - Utilizar `tableId` para asociar la orden a una mesa específica.
+        - El `type` debe ser `"order"`
+        - Si los pedidos no vienen pagados, deberán pagarse posteriormente en caja
+
+      ### Restricciones de Pago:
+        - No se permite desde la API realizar pagos a pedidos abiertos
+        - Solo se pueden pagar productos al momento de ingresarlos
+        - Productos existentes en órdenes abiertas no pueden pagarse via API
+
+      ### Métodos de Pago Disponibles:
+
+
+        | ID  | Método de Pago |
+        |-----|----------------|
+        | 1000 | Efectivo |
+        | 1001 | Efectivo Moneda Extranjera |
+        | 2000 | Tarjeta Credito |
+        | 3000 | Tarjeta Debito |
+        | 4000 | Convenio |
+        | 5000 | Web Pay |
+        | 5001 | PayPal |
+        | 6000 | Movil |
+        | 7000 | Mensaje |
+        | 8001 | Factura/Contra Entrega |
+        | 9000 | Cheque |
+        | 9001 | Transferencia |
+        | 10001 | Ticket Restaurant |
+        | 10020 | Cheque Restaurant |
+        | 10030 | Multicaja |
+        | 10040 | Voucher BBG |
+
+
+      **Nota**: Si el restaurante opera con medios de pago customizados, verificar el ID correspondiente en `Ajustes Generales > Formas de Pago`.
+
+
+      ### Actualización de Órdenes:
+        - Solo aplica para órdenes en mesas físicas
+        - Enviar `orderId` real en lugar de `0`
+        - Solo se pueden añadir productos y pagar los nuevos items
+        - No se permite modificar o pagar productos existentes
+      
+      ### Manejo de Productos No Existentes:
+        - Si la opción "Utilice el código de producto TOTEATDVYERROR" está activa:
+        - Productos desconocidos se asociarán a `TOTEATDVYERROR`
+        - Se conservará nombre y precio del producto original
+      
+      ### ⚠️ Límite de solicitudes
+        - 1 solicitud por segundo

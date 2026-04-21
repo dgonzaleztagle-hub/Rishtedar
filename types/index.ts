@@ -127,6 +127,34 @@ export interface Promotion {
   is_active: boolean
   usage_count: number
   created_at: string
+  // ── Banner visual (opcional) ────────────────────────────────────────────────
+  show_as_banner: boolean
+  image_url: string | null
+  font_family: string | null
+  font_size: number | null
+  text_color: string | null
+  background_color: string | null
+  overlay_opacity: number | null   // 0 = imagen pura · 100 = color sólido
+  banner_padding: number | null
+  border_radius: number | null
+}
+
+// ─── PROMOTIONAL BANNERS ─────────────────────────────────────────────────────
+
+export interface PromotionalBanner {
+  id: string
+  title: string
+  description: string | null
+  image_url: string | null
+  font_family: string
+  font_size: number
+  text_color: string
+  background_color: string
+  padding: number
+  border_radius: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
 }
 
 // ─── SUSCRIPTORES ────────────────────────────────────────────────────────────
@@ -169,6 +197,20 @@ export interface Driver {
   zone: string | null
   is_active: boolean
   created_at: string
+}
+
+// ─── STAFF AUTH ──────────────────────────────────────────────────────────────
+
+export type StaffRole = 'super_admin' | 'manager' | 'kitchen'
+
+export interface StaffProfile {
+  id:           string
+  display_name: string
+  role:         StaffRole
+  branches:     string[]   // slugs de locales, o ['*'] para super_admin
+  is_active:    boolean
+  created_at:   string
+  updated_at:   string
 }
 
 // ─── ANALYTICS ───────────────────────────────────────────────────────────────

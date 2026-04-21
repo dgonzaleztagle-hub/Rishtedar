@@ -1,0 +1,145 @@
+products:
+  get:
+    tags:
+      - Endpoints
+    parameters:
+    - name: xir
+      in: query
+      description: Identificador del restaurante
+      required: true
+      schema:
+        type: string
+    - name: xil
+      in: query
+      description: Identificador del local asociado al restaurante
+      required: true
+      schema:
+        type: string
+    - name: xiu
+      in: query
+      description: Identificador del usuario 
+      required: true
+      schema:
+        type: string
+    - name: xapitoken
+      in: query
+      description: Token habilitado para que la herramienta externa pueda consumir el API
+      required: true
+      schema:
+        type: string
+    - name: activeProducts
+      in: query
+      required: false
+      schema:
+        type: boolean
+      description: Si es true, retorna solo productos activos. Al ser false, retorna todos los productos, incluyendo los inactivos. Por defecto es true.
+    responses:
+      '200':
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreMenu'
+        description: Success
+      '400':
+        $ref: '#/components/responses/InvalidCredentials'
+      '429':
+        $ref: '#/components/responses/TooManyRequests'
+
+    operationId: getMenu
+    summary: Obtener Menú
+    description: >-
+      Al ser Toteat el POS del restaurante se entiende que este debe ser el más confiable en cuanto a la información de los productos que se venden en el restaurante y sus valores. 
+
+      Por ello sistemas externos que también manejen dicha información deben estar siempre sincronizados a la información que Toteat maneja para que no exista la posibilidad de que se vendan productos sin disponibilidad o a precios no actualizados.
+
+
+      Se ha habilitado un servicio en el API de Toteat para dicho fin que debe ser consumido via GET, este devolverá contenido formateado como application/json en utf-8.
+
+
+      En respuesta a la solicitud, se retornara un diccionario que contiene 3 campos:
+
+      - `msg`: contiene el mensaje de la solicitud realizada. 
+
+      - `ok`: señala si la solicitud fue exitosa
+
+      - `data`: lista que contiene la información de todos los productos y extras activos,
+          dependiendo del valor configurado en el parámetro `activeProducts`. 
+
+      
+      ### Estructura de los productos en `data`
+
+      
+      Cada producto de la lista contiene los siguientes atributos:
+
+      - `name`: Nombre del producto
+
+      - `images`: Conjunto de imágenes del producto.
+
+      - `id`: Identificador del producto dentro de Toteat.
+
+      - `price`: Precio del producto.
+
+      - `referencePrice`: Precio de referencia del producto, configurado como valor opcional en la lista de precios.
+        Este campo será distinto de null únicamente si:
+          1. En la configuración de la API se utiliza una lista de precios (y no el maestro de productos).
+          2. El producto tiene definido un precio de referencia en dicha lista.
+        
+        
+        No corresponde al precio principal de venta, sino a un valor alternativo de referencia,
+        generalmente mostrado como precio tachado en ofertas o descuentos.
+      
+      - `sorting`: Orden del producto en la lista, de acuerdo al ordenamiento de menú en Toteat.
+
+      - `category`: Nombre de la categoría a la que pertenece el producto.
+
+      - `localCode`: Identificador del producto dentro de Toteat.
+
+      - `categoryId`: Identificador de la categoría.
+
+      - `isModifier`: Si el producto es un extra o no.
+
+      - `modificationDate`: Última fecha de modificación.
+
+      - `modifiers`: Lista de modificadores si es que los tiene. 
+
+
+      ⚠️ **Nota sobre jerarquías:**
+
+
+      Si un producto pertenece a una **subjerarquía** que a su vez depende de una jerarquía mayor,
+      el producto devolverá únicamente la jerarquía más inmediata.
+
+
+      ### Estructura de los modificadores
+
+      
+      En Toteat un producto no  asocia específicamente un extra sino una categoría de extras, por lo que cada modifier tendra los siguientes atributos:
+
+      - `id`: Identificador de la categoría de extra.
+
+      - `name`: Nombre de la categoría de extras.
+
+      - `multi`: Indica si se pueden seleccionar múltiples extras de esa categoría.
+
+      - `sorting`: Orden de la categoría de extras en la lista, de acuerdo al ordenamiento de menú en Toteat.
+      
+      - `minQuantity`: Cantidad mínima de extras de esa categoria
+
+      - `maxQuantity`: Cantidad máxima de extras de esa categoria
+
+
+      ### 📌 Consideraciones para el campo `sorting`
+
+
+      Para replicar el orden del menú tal como se visualiza en el POS de Toteat en
+      **Menú Lateral > Productos > Ordenamiento Menú**, se deben ordenar los productos
+      y modificadores utilizando el campo `sorting`.  
+
+      - Este valor es una cadena que puede ordenarse alfabéticamente en orden ascendente (`A-Z`)
+        para reflejar la estructura definida en el sistema.  
+      - A pesar de que `data` contiene tanto productos como extras, al ordenar la lista
+        por `sorting`, los **extras siempre quedarán al final**, manteniendo igualmente
+        el orden definido en Toteat.
+
+      ### ⚠️ Límite de solicitudes
+        - 3 solicitudes por minuto

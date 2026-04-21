@@ -25,7 +25,7 @@ const HUD_H = 68
 const STAGE_Y = 88
 const LIVES_MAX = 3
 const TABLE_W = 188
-const TABLE_H = 128
+const TABLE_H = 148
 const TABLE_SLOTS = [
   { x: 146, y: 198 },
   { x: 352, y: 198 },
@@ -1326,14 +1326,14 @@ function drawTables(
     const customer = state.customers[index]
     const cardX = slot.x - TABLE_W / 2
     const cardY = slot.y - TABLE_H / 2
-    const textBoxX = cardX + 38
-    const textBoxW = 92
-    const textCenterX = textBoxX + textBoxW / 2
-    const bowlX = cardX + 154
-    const customerX = cardX + 32
-    const customerY = cardY + 86
-    const chipsStartX = cardX + 120
-    const bottomY = cardY + 108
+    const textCenterX = slot.x
+    const bowlX = cardX + 148
+    const customerX = cardX + 34
+    const customerY = cardY + 102
+    const patienceWidth = TABLE_W - 20
+    const patienceX = cardX + 10
+    const patienceY = cardY + 56
+    const badgeY = cardY + 128
 
     const baseGradient = ctx.createLinearGradient(cardX, cardY, cardX, cardY + TABLE_H)
     baseGradient.addColorStop(0, customer ? 'rgba(60,28,19,0.92)' : 'rgba(29,17,13,0.75)')
@@ -1355,7 +1355,7 @@ function drawTables(
 
     ctx.fillStyle = 'rgba(255,255,255,0.05)'
     ctx.beginPath()
-    ctx.roundRect(cardX + 16, cardY + 14, TABLE_W - 32, 34, 14)
+    ctx.roundRect(cardX + 8, cardY + 8, TABLE_W - 16, 40, 14)
     ctx.fill()
 
     if (!customer) {
@@ -1371,34 +1371,14 @@ function drawTables(
     }
 
     const recipePreview = getRecipePreview(customer.recipeId)
+    ctx.textAlign = 'center'
     ctx.fillStyle = '#fff5e8'
     ctx.font = '700 11px sans-serif'
-    ctx.fillText(customer.recipe.name, textCenterX, cardY + 30)
+    ctx.fillText(customer.recipe.name, textCenterX, cardY + 27)
     ctx.fillStyle = 'rgba(244,217,187,0.72)'
     ctx.font = '9px sans-serif'
-    ctx.fillText(recipePreview, textCenterX, cardY + 45)
+    ctx.fillText(recipePreview, textCenterX, cardY + 42)
 
-    const ingredientsY = cardY + 58
-    customer.recipe.ingredients.forEach((ingredientId, ingredientIndex) => {
-      const ingredient = INGREDIENT_BY_ID[ingredientId]
-      const pillX = cardX + 58 + ingredientIndex * 41
-      ctx.fillStyle = 'rgba(255,255,255,0.08)'
-      ctx.beginPath()
-      ctx.roundRect(pillX, ingredientsY, 34, 17, 8)
-      ctx.fill()
-      ctx.fillStyle = ingredient.fill
-      ctx.beginPath()
-      ctx.arc(pillX + 8, ingredientsY + 8, 5, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.fillStyle = '#f5dfc2'
-      ctx.font = 'bold 8px sans-serif'
-      ctx.textAlign = 'left'
-      ctx.fillText(ingredient.badgeLabel, pillX + 16, ingredientsY + 11)
-    })
-
-    const patienceWidth = 124
-    const patienceX = cardX + 30
-    const patienceY = cardY + 98
     ctx.fillStyle = 'rgba(255,255,255,0.08)'
     ctx.beginPath()
     ctx.roundRect(patienceX, patienceY, patienceWidth, 8, 8)
@@ -1412,25 +1392,26 @@ function drawTables(
     ctx.fill()
 
     drawCustomer(ctx, customerX, customerY, index, customer.mood, customer.pulse, customerPortraits)
-    drawCompactRecipeCard(ctx, bowlX, cardY + 60, customer.recipe, recipeSprites[customer.recipe.id])
+    drawCompactRecipeCard(ctx, bowlX, cardY + 86, customer.recipe, recipeSprites[customer.recipe.id])
 
     customer.recipe.ingredients.forEach((ingredientId, ingredientIndex) => {
-      const chipX = chipsStartX + ingredientIndex * 28
+      const chipX = cardX + 96 + ingredientIndex * 32
       drawIngredientBadge(
         ctx,
         ingredientSprites[ingredientId],
         ingredientId,
         chipX,
-        bottomY,
-        17,
-        11
+        badgeY,
+        32,
+        16
       )
     })
 
     if (customer.mood === 'impatient') {
       ctx.fillStyle = 'rgba(234,115,70,0.9)'
       ctx.font = 'bold 12px sans-serif'
-      ctx.fillText('¡Ya!', cardX + 80, cardY + TABLE_H - 8)
+      ctx.textAlign = 'center'
+      ctx.fillText('¡Ya!', textCenterX, cardY + TABLE_H - 8)
     }
 
     state.buttonMap.push({ key: String(index), x: slot.x, y: slot.y, radius: 70, type: 'table' })
@@ -1448,12 +1429,7 @@ function drawCompactRecipeCard(
 ) {
   ctx.save()
 
-  ctx.fillStyle = 'rgba(255,255,255,0.04)'
-  ctx.beginPath()
-  ctx.roundRect(x - 34, y - 34, 68, 68, 18)
-  ctx.fill()
-
-  drawOrderBowl(ctx, x, y, recipe, recipeSprite, 0.96, 46, 38)
+  drawOrderBowl(ctx, x, y, recipe, recipeSprite, 0.96, 56, 48)
 
   ctx.restore()
 }

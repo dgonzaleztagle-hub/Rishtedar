@@ -104,23 +104,71 @@ CREATE TABLE IF NOT EXISTS menu_items (
 -- Definida antes de orders porque orders.promo_id la referencia.
 
 CREATE TABLE IF NOT EXISTS promotions (
-  id              UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  title           TEXT NOT NULL,
-  description     TEXT,
-  discount_type   TEXT CHECK (discount_type IN ('percent','fixed_amount')) NOT NULL,
-  discount_value  NUMERIC NOT NULL,
-  applicable_to   TEXT CHECK (applicable_to IN ('all_orders','delivery_only','dine_in_only','reservation_only'))
-                  NOT NULL DEFAULT 'all_orders',
-  business_id     TEXT,                    -- NULL = todos los locales
-  valid_from      DATE NOT NULL,
-  valid_to        DATE NOT NULL,
-  day_of_week     INTEGER CHECK (day_of_week BETWEEN 0 AND 6), -- NULL = todos los días
-  start_hour      INTEGER CHECK (start_hour BETWEEN 0 AND 23),
-  end_hour        INTEGER CHECK (end_hour BETWEEN 0 AND 23),
-  is_active       BOOLEAN DEFAULT true,
-  usage_count     INTEGER DEFAULT 0,
-  created_at      TIMESTAMPTZ DEFAULT NOW()
+  id               UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  title            TEXT NOT NULL,
+  description      TEXT,
+  discount_type    TEXT CHECK (discount_type IN ('percent','fixed_amount')) NOT NULL,
+  discount_value   NUMERIC NOT NULL,
+  applicable_to    TEXT CHECK (applicable_to IN ('all_orders','delivery_only','dine_in_only','reservation_only'))
+                   NOT NULL DEFAULT 'all_orders',
+  business_id      TEXT,                    -- NULL = todos los locales
+  valid_from       DATE NOT NULL,
+  valid_to         DATE NOT NULL,
+  day_of_week      INTEGER CHECK (day_of_week BETWEEN 0 AND 6), -- NULL = todos los días
+  start_hour       INTEGER CHECK (start_hour BETWEEN 0 AND 23),
+  end_hour         INTEGER CHECK (end_hour BETWEEN 0 AND 23),
+  is_active        BOOLEAN DEFAULT true,
+  usage_count      INTEGER DEFAULT 0,
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  -- ── Banner visual (opcional) ──────────────────────────────────────────────
+  -- Cuando show_as_banner=true, la promoción aparece como pop-up en el sitio
+  show_as_banner   BOOLEAN DEFAULT false,
+  image_url        TEXT,
+  font_family      TEXT DEFAULT 'Yatra One',
+  font_size        INTEGER DEFAULT 28,
+  text_color       TEXT DEFAULT '#ffffff',
+  background_color TEXT DEFAULT '#91226f',
+  overlay_opacity  INTEGER DEFAULT 60,  -- 0=imagen pura, 100=color sólido
+  banner_padding   INTEGER DEFAULT 24,
+  border_radius    INTEGER DEFAULT 8
 );
+
+-- ─── PROMOTIONAL BANNERS (Pop-ups personalizables) ────────────────────────────
+-- Banners visuales con tipografía y colores personalizables para pop-ups
+
+CREATE TABLE IF NOT EXISTS promotional_banners (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  image_url TEXT,
+  font_family TEXT DEFAULT 'Poppins',
+  font_size INTEGER DEFAULT 24,
+  text_color TEXT DEFAULT '#000000',
+  background_color TEXT DEFAULT '#ffffff',
+  padding INTEGER DEFAULT 20,
+  border_radius INTEGER DEFAULT 8,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS policies
+ALTER TABLE promotional_banners ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "public_read_active_banners" ON promotional_banners
+  FOR SELECT USING (is_active = true);
+
+CREATE POLICY "admin_manage_banners" ON promotional_banners
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM auth.users
+      WHERE auth.users.id = auth.uid()
+      AND auth.users.raw_user_meta_data->>'role' = 'admin'
+    )
+  );
+
+-- Índice para queries rápidas
+CREATE INDEX IF NOT EXISTS idx_banners_active ON promotional_banners(is_active);
 
 -- ─── ORDERS ───────────────────────────────────────────────────────────────────
 
@@ -250,6 +298,19 @@ CREATE TABLE IF NOT EXISTS loyalty_transactions (
   points_delta   INTEGER NOT NULL,          -- positivo = ganó, negativo = canjeó
   reason         TEXT,                      -- 'order', 'ranking_prize', 'manual'
   created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ─── LOYALTY CONFIG ──────────────────────────────────────────────────────────
+-- Fila única con la configuración editable del programa Circle.
+-- earn_rules, prizes y tier_benefits son JSONB para permitir edición
+-- desde el dashboard sin migraciones adicionales.
+
+CREATE TABLE IF NOT EXISTS loyalty_config (
+  id            UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  earn_rules    JSONB NOT NULL DEFAULT '[]'::jsonb,
+  prizes        JSONB NOT NULL DEFAULT '[]'::jsonb,
+  tier_benefits JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ─── GAME SCORES ─────────────────────────────────────────────────────────────

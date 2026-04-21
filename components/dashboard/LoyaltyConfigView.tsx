@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Gift, Trophy, Zap, Star, Crown, Info, Save, CheckCircle2, Plus, Trash2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Gift, Trophy, Zap, Star, Crown, Save, CheckCircle2, Plus, Trash2, Loader2 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -112,10 +112,26 @@ const DEFAULT_TIER_BENEFITS: Record<'bronze' | 'silver' | 'gold', TierBenefit[]>
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function LoyaltyConfigView() {
-  const [rules, setRules]         = useState<EarnRule[]>(DEFAULT_EARN_RULES)
-  const [prizes, setPrizes]       = useState<RankingPrize[]>(DEFAULT_PRIZES)
+  const [rules, setRules]               = useState<EarnRule[]>(DEFAULT_EARN_RULES)
+  const [prizes, setPrizes]             = useState<RankingPrize[]>(DEFAULT_PRIZES)
   const [tierBenefits, setTierBenefits] = useState(DEFAULT_TIER_BENEFITS)
-  const [saved, setSaved]         = useState(false)
+  const [loading, setLoading]           = useState(true)
+  const [saving, setSaving]             = useState(false)
+  const [saved, setSaved]               = useState(false)
+  const [saveError, setSaveError]       = useState<string | null>(null)
+
+  // ── Load config from DB on mount ──────────────────────────────────────────
+  useEffect(() => {
+    fetch('/api/admin/loyalty-config')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data.earn_rules)    && data.earn_rules.length    > 0) setRules(data.earn_rules)
+        if (Array.isArray(data.prizes)        && data.prizes.length        > 0) setPrizes(data.prizes)
+        if (data.tier_benefits && Object.keys(data.tier_benefits).length   > 0) setTierBenefits(data.tier_benefits)
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
 
   function updateRule(id: string, field: keyof EarnRule, value: number | boolean) {
     setRules(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r))
@@ -146,11 +162,31 @@ export function LoyaltyConfigView() {
     }))
   }
 
-  function handleSave() {
-    // TODO: POST /api/admin/loyalty-config cuando el cliente apruebe persistencia en DB
-    // Por ahora solo feedback visual
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+  async function handleSave() {
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const res = await fetch('/api/admin/loyalty-config', {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ earn_rules: rules, prizes, tier_benefits: tierBenefits }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Error al guardar')
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Error al guardar')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 size={20} className="animate-spin text-warm-400" />
+      </div>
+    )
   }
 
   return (
@@ -165,22 +201,17 @@ export function LoyaltyConfigView() {
             Define cuántos puntos suma cada acción y qué ganan los ganadores del ranking semanal.
           </p>
         </div>
-        <button
-          onClick={handleSave}
-          className="flex items-center gap-2 bg-brand-700 hover:bg-brand-800 text-ivory px-5 py-2.5 text-xs tracking-wider uppercase font-medium transition-colors shrink-0"
-        >
-          {saved ? <CheckCircle2 size={13} /> : <Save size={13} />}
-          {saved ? 'Guardado' : 'Guardar'}
-        </button>
-      </div>
-
-      {/* Info banner */}
-      <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 px-4 py-3">
-        <Info size={15} className="text-amber-500 shrink-0 mt-0.5" />
-        <p className="text-amber-700 text-xs leading-relaxed">
-          Vista de configuración — los cambios son visuales por ahora y se pierden al recargar.
-          La persistencia en base de datos se activa en la siguiente fase.
-        </p>
+        <div className="flex flex-col items-end gap-1">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 bg-brand-700 hover:bg-brand-800 disabled:opacity-50 text-ivory px-5 py-2.5 text-xs tracking-wider uppercase font-medium transition-colors shrink-0"
+          >
+            {saving ? <Loader2 size={13} className="animate-spin" /> : saved ? <CheckCircle2 size={13} /> : <Save size={13} />}
+            {saving ? 'Guardando…' : saved ? 'Guardado' : 'Guardar'}
+          </button>
+          {saveError && <p className="text-red-500 text-[11px]">{saveError}</p>}
+        </div>
       </div>
 
       {/* ── Tiers ───────────────────────────────────────────────────────────── */}
@@ -205,7 +236,7 @@ export function LoyaltyConfigView() {
           })}
         </div>
         <p className="text-warm-400 text-xs mt-2">
-          Los umbrales de tier (1.000 / 5.000 pts) están fijados en código. Contactar al dev para cambiarlos.
+          Los umbrales de tier están fijados en código (1.000 / 5.000 pts). Se pueden ajustar bajo pedido.
         </p>
       </section>
 
@@ -282,7 +313,7 @@ export function LoyaltyConfigView() {
           })}
         </div>
         <p className="text-warm-400 text-xs mt-2">
-          Los cambios son visuales y se pierden al recargar. La persistencia en DB se activa en la siguiente fase.
+          Guarda para que los cambios se reflejen en la app del cliente.
         </p>
       </section>
 

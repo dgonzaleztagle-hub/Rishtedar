@@ -24,16 +24,23 @@ export async function GET(req: Request) {
 
     if (error) throw error
 
-    const reservations = (data as Reservation[]).map(r => ({
-      id: r.id,
-      time: r.reservation_time,
-      name: r.customer_name,
-      party: r.party_size,
-      status: r.status,
-      phone: r.customer_phone,
-      local: businessDisplayName(r.business_id),
-      request: r.special_requests ?? '',
-    }))
+    const reservations = (data as Reservation[]).map(r => {
+      const obj: any = {
+        id: r.id,
+        time: r.reservation_time,
+        name: r.customer_name,
+        party: r.party_size,
+        status: r.status,
+        phone: r.customer_phone,
+        local: businessDisplayName(r.business_id),
+        request: r.special_requests ?? '',
+      }
+      // Agregar business_id solo si existe
+      if (r.business_id) {
+        obj.business_id = r.business_id
+      }
+      return obj
+    })
 
     return NextResponse.json(reservations)
   } catch (error) {

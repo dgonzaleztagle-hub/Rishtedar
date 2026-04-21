@@ -11,6 +11,7 @@ import {
 import Link from 'next/link'
 import { LOCATIONS } from '@/lib/locations'
 import { toast } from 'sonner'
+import { trackEvent } from '@/lib/analytics/tracker'
 
 const PARTY_SIZES = [1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 15, 20]
 
@@ -71,6 +72,7 @@ export function ReservationForm({ initialLocal }: { initialLocal?: string }) {
       return
     }
     setLoading(true)
+    trackEvent('reservation_started', { party_size: partySize, local: selectedLocal }, selectedLocal ?? undefined)
 
     try {
       const res = await fetch('/api/reservations/create', {
@@ -93,6 +95,11 @@ export function ReservationForm({ initialLocal }: { initialLocal?: string }) {
 
       const data = await res.json()
       setConfirmed({ number: data.reservationNumber })
+      trackEvent('reservation_completed', {
+        reservation_number: data.reservationNumber,
+        party_size: partySize,
+        local: selectedLocal,
+      }, selectedLocal ?? undefined)
       setStep(4)
     } catch {
       toast.error('No se pudo completar la reserva. Intenta de nuevo.')

@@ -6,6 +6,7 @@ import {
   Truck, Clock, CheckCircle2, MapPin, Phone, User,
   Navigation, Package, AlertCircle, ChevronDown, ChevronUp,
   Plus, Bike, Car, Footprints, MessageCircle, ToggleLeft, ToggleRight,
+  Loader2, RefreshCw, ExternalLink,
 } from 'lucide-react'
 import { formatCLP } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -17,68 +18,38 @@ import type { Driver } from '@/types'
 type DeliveryStatus = 'assigned' | 'pickup' | 'on_route' | 'delivered' | 'issue'
 
 interface DeliveryOrder {
-  id: string
-  order_number: string
-  customer_name: string
+  id:             string
+  order_number:   string
+  customer_name:  string
   customer_phone: string
-  address: string
-  neighborhood: string
-  items: string[]
-  total: number
-  status: DeliveryStatus
-  driver_id?: string
-  driver_name?: string
-  driver_phone?: string
-  driver_token?: string
-  pickup_time?: string
-  estimated_delivery?: string
-  distance_km: number
-  notes?: string
+  address:        string
+  neighborhood:   string
+  items:          string[]
+  total:          number
+  status:         DeliveryStatus
+  driver_id?:     string
+  driver_name?:   string
+  driver_phone?:  string
+  driver_token?:  string
+  distance_km:    number
+  notes?:         string
 }
 
-// ─── Demo fallback ────────────────────────────────────────────────────────────
-
-const DEMO_DRIVERS: Driver[] = [
-  { id: 'd1', business_id: 'providencia', name: 'Rodrigo Muñoz', phone: '981234567', vehicle: 'moto', zone: 'Providencia', is_active: true, created_at: '' },
-  { id: 'd2', business_id: 'providencia', name: 'Felipe Castro', phone: '972345678', vehicle: 'bici', zone: 'Providencia / Ñuñoa', is_active: true, created_at: '' },
-  { id: 'd3', business_id: 'providencia', name: 'Andrés Silva', phone: '963456789', vehicle: 'moto', zone: 'Las Condes / Vitacura', is_active: true, created_at: '' },
-  { id: 'd4', business_id: 'providencia', name: 'Matías Torres', phone: '954567890', vehicle: 'bici', zone: 'La Dehesa', is_active: false, created_at: '' },
-]
-
-const DEMO_ORDERS: DeliveryOrder[] = [
-  {
-    id: 'ord-001', order_number: 'RSH-ABC123',
-    customer_name: 'María González', customer_phone: '+56 9 8765 4321',
-    address: 'Av. Providencia 1234, Depto 52', neighborhood: 'Providencia',
-    items: ['Chicken Tikka Masala', 'Garlic Naan x2'],
-    total: 27800, status: 'on_route', driver_id: 'd1', driver_name: 'Rodrigo Muñoz', driver_phone: '981234567',
-    pickup_time: '19:42', estimated_delivery: '20:05', distance_km: 2.3,
-  },
-  {
-    id: 'ord-002', order_number: 'RSH-YZA567',
-    customer_name: 'Sofía Herrera', customer_phone: '+56 9 4321 0987',
-    address: 'Ricardo Lyon 222, Dpto 12', neighborhood: 'Providencia',
-    items: ['Lamb Rogan Josh', 'Dal Makhani'],
-    total: 33900, status: 'assigned',
-    estimated_delivery: '20:40', distance_km: 1.8,
-  },
-]
-
-// ─── Configs ──────────────────────────────────────────────────────────────────
+// ─── Config ───────────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<DeliveryStatus, { label: string; icon: typeof Clock; color: string; bg: string; step: number }> = {
-  assigned: { label: 'Asignado',   icon: User,         color: 'text-amber-700',   bg: 'bg-amber-50',   step: 1 },
-  pickup:   { label: 'Recogiendo', icon: Package,      color: 'text-blue-700',    bg: 'bg-blue-50',    step: 2 },
-  on_route: { label: 'En camino',  icon: Navigation,   color: 'text-purple-700',  bg: 'bg-purple-50',  step: 3 },
-  delivered:{ label: 'Entregado',  icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50', step: 4 },
-  issue:    { label: 'Problema',   icon: AlertCircle,  color: 'text-red-700',     bg: 'bg-red-50',     step: 0 },
+  assigned:  { label: 'Asignado',   icon: User,         color: 'text-amber-700',   bg: 'bg-amber-50',   step: 1 },
+  pickup:    { label: 'Recogiendo', icon: Package,      color: 'text-blue-700',    bg: 'bg-blue-50',    step: 2 },
+  on_route:  { label: 'En camino',  icon: Navigation,   color: 'text-purple-700',  bg: 'bg-purple-50',  step: 3 },
+  delivered: { label: 'Entregado',  icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50', step: 4 },
+  issue:     { label: 'Problema',   icon: AlertCircle,  color: 'text-red-700',     bg: 'bg-red-50',     step: 0 },
 }
 
 const VEHICLE_ICON: Record<Driver['vehicle'], typeof Truck> = {
-  moto:   Truck,
-  bici:   Bike,
-  auto:   Car,
-  a_pie:  Footprints,
+  moto:  Truck,
+  bici:  Bike,
+  auto:  Car,
+  a_pie: Footprints,
 }
 
 const VEHICLE_LABEL: Record<Driver['vehicle'], string> = {
@@ -90,88 +61,185 @@ const VEHICLE_LABEL: Record<Driver['vehicle'], string> = {
 
 const STEPS = ['Asignado', 'Recogiendo', 'En camino', 'Entregado']
 
+const API_NEXT_STATUS: Record<DeliveryStatus, string | null> = {
+  assigned:  'pickup',
+  pickup:    'in_transit',
+  on_route:  'delivered',
+  delivered: null,
+  issue:     null,
+}
+
+const UI_NEXT_STATUS: Record<DeliveryStatus, DeliveryStatus> = {
+  assigned:  'pickup',
+  pickup:    'on_route',
+  on_route:  'delivered',
+  delivered: 'delivered',
+  issue:     'assigned',
+}
+
+const NEXT_LABEL: Record<DeliveryStatus, string> = {
+  assigned:  '→ Recogiendo',
+  pickup:    '→ En camino',
+  on_route:  '→ Entregado',
+  delivered: '',
+  issue:     '',
+}
+
 type DriverForm = { name: string; phone: string; vehicle: Driver['vehicle']; zone: string }
 const EMPTY_FORM: DriverForm = { name: '', phone: '', vehicle: 'moto', zone: '' }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getBusinessId(): string {
+  if (typeof window === 'undefined') return 'providencia'
+  try {
+    return JSON.parse(localStorage.getItem('rishtedar_branch') || '{}')?.id || 'providencia'
+  } catch { return 'providencia' }
+}
+
+// Mapear status del API → DeliveryStatus de UI
+const API_TO_UI: Record<string, DeliveryStatus> = {
+  assigned:   'assigned',
+  pickup:     'pickup',
+  in_transit: 'on_route',
+  delivered:  'delivered',
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function DeliveryView() {
-  const [orders, setOrders]           = useState<DeliveryOrder[]>(DEMO_ORDERS)
-  const [drivers, setDrivers]         = useState<Driver[]>(DEMO_DRIVERS)
-  const [expanded, setExpanded]       = useState<string | null>(DEMO_ORDERS[0]?.id ?? null)
-  const [assignModal, setAssignModal] = useState<string | null>(null)
-  const [assigningId, setAssigningId] = useState<string | null>(null)
-  const [waResult, setWaResult]       = useState<{ waUrl: string; driverName: string } | null>(null)
+  const [orders, setOrders]                 = useState<DeliveryOrder[]>([])
+  const [loadingOrders, setLoadingOrders]   = useState(true)
+  const [drivers, setDrivers]               = useState<Driver[]>([])
+  const [expanded, setExpanded]             = useState<string | null>(null)
+  const [assignModal, setAssignModal]       = useState<string | null>(null)
+  const [assigningId, setAssigningId]       = useState<string | null>(null)
+  const [advancingId, setAdvancingId]       = useState<string | null>(null)
+  const [waResult, setWaResult]             = useState<{ waUrl: string; driverName: string } | null>(null)
   const [showDriverForm, setShowDriverForm] = useState(false)
-  const [driverForm, setDriverForm]   = useState<DriverForm>(EMPTY_FORM)
-  const [savingDriver, setSavingDriver] = useState(false)
+  const [driverForm, setDriverForm]         = useState<DriverForm>(EMPTY_FORM)
+  const [savingDriver, setSavingDriver]     = useState(false)
+  const [requestingExternal, setRequestingExternal] = useState(false)
 
-  const hasDB = !!(process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith('http'))
+  // ── Fetch orders ───────────────────────────────────────────────────────────
+  const fetchOrders = useCallback(async () => {
+    const businessId = getBusinessId()
+    try {
+      const res = await fetch(`/api/orders?business_id=${businessId}&view=delivery`)
+      if (!res.ok) throw new Error(await res.text())
+      const json = await res.json()
 
-  // ── Fetch drivers from DB ──────────────────────────────────────────────────
+      const mapped: DeliveryOrder[] = (json.orders ?? []).map((row: {
+        id: string; order_number: string; customer_name: string; customer_phone: string
+        address: string; neighborhood: string; items: string[]; total: number
+        tracking_status: string | null; driver_id: string | null; driver_name: string | null
+        driver_phone: string | null; driver_token: string | null
+      }) => ({
+        id:            row.id,
+        order_number:  row.order_number,
+        customer_name: row.customer_name,
+        customer_phone: row.customer_phone,
+        address:       row.address,
+        neighborhood:  row.neighborhood,
+        items:         row.items,
+        total:         row.total,
+        status:        row.tracking_status ? (API_TO_UI[row.tracking_status] ?? 'assigned') : 'assigned',
+        driver_id:     row.driver_id    ?? undefined,
+        driver_name:   row.driver_name  ?? undefined,
+        driver_phone:  row.driver_phone ?? undefined,
+        driver_token:  row.driver_token ?? undefined,
+        distance_km:   0,
+      }))
+
+      setOrders(mapped)
+      // Auto-expand el primero activo si no hay nada expandido
+      setExpanded(prev => prev ?? mapped.find(o => o.status !== 'delivered')?.id ?? null)
+    } catch (err) {
+      console.error('[DeliveryView] fetchOrders', err)
+      toast.error('Error al cargar pedidos')
+    } finally {
+      setLoadingOrders(false)
+    }
+  }, [])
+
+  // ── Fetch drivers ──────────────────────────────────────────────────────────
   const fetchDrivers = useCallback(async () => {
-    if (!hasDB) return
-    const branch = JSON.parse(localStorage.getItem('rishtedar_branch') || '{}')
-    const businessId = branch?.id || 'providencia'
+    const businessId = getBusinessId()
     try {
       const res = await fetch(`/api/drivers?business_id=${businessId}`)
       if (res.ok) {
         const json = await res.json()
-        if (json.drivers?.length) setDrivers(json.drivers)
+        if (Array.isArray(json.drivers)) setDrivers(json.drivers)
       }
     } catch { /* silencioso */ }
-  }, [hasDB])
+  }, [])
 
-  // ── Realtime: escuchar cambios en delivery_tracking ───────────────────────
+  // ── Realtime: delivery_tracking + nuevas órdenes ───────────────────────────
   useEffect(() => {
+    fetchOrders()
     fetchDrivers()
-    if (!hasDB) return
+
     const supabase = createClient()
+    const businessId = getBusinessId()
+
     const channel = supabase
-      .channel('delivery_tracking_changes')
+      .channel('delivery_realtime')
+      // Cambios en delivery_tracking → actualizar estado en UI
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'delivery_tracking' },
         (payload) => {
-          const updated = payload.new as { order_id: string; status: string; driver_name?: string; driver_id?: string; driver_token?: string }
-          if (!updated?.order_id) return
-          const statusMap: Record<string, DeliveryStatus> = {
-            assigned:   'assigned',
-            pickup:     'pickup',
-            in_transit: 'on_route',
-            delivered:  'delivered',
+          const updated = payload.new as {
+            order_id: string; status: string
+            driver_name?: string; driver_id?: string; driver_token?: string
           }
+          if (!updated?.order_id) return
           setOrders(prev => prev.map(o =>
             o.id === updated.order_id
               ? {
                   ...o,
-                  status:       statusMap[updated.status] ?? o.status,
-                  driver_name:  updated.driver_name ?? o.driver_name,
-                  driver_id:    updated.driver_id ?? o.driver_id,
+                  status:       API_TO_UI[updated.status] ?? o.status,
+                  driver_name:  updated.driver_name  ?? o.driver_name,
+                  driver_id:    updated.driver_id    ?? o.driver_id,
                   driver_token: updated.driver_token ?? o.driver_token,
                 }
               : o
           ))
         }
       )
+      // Nueva orden de delivery → refetch para incluirla con sus items
+      .on(
+        'postgres_changes',
+        {
+          event:  'INSERT',
+          schema: 'public',
+          table:  'orders',
+          filter: `business_id=eq.${businessId}`,
+        },
+        (payload) => {
+          const newOrder = payload.new as { order_type: string }
+          if (newOrder?.order_type === 'delivery') {
+            fetchOrders()
+          }
+        }
+      )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [fetchDrivers, hasDB])
+  }, [fetchOrders, fetchDrivers])
 
   // ── Assign driver ──────────────────────────────────────────────────────────
   async function handleAssign(orderId: string, driver: Driver) {
     setAssigningId(driver.id)
     try {
       const res = await fetch('/api/delivery/assign', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: orderId, driver_id: driver.id, business_id: driver.business_id }),
+        body:    JSON.stringify({ order_id: orderId, driver_id: driver.id, business_id: driver.business_id }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
 
-      // Actualizar estado local
       setOrders(prev => prev.map(o =>
         o.id === orderId
           ? { ...o, driver_id: driver.id, driver_name: driver.name, driver_phone: driver.phone, driver_token: json.token, status: 'assigned' }
@@ -179,30 +247,70 @@ export function DeliveryView() {
       ))
       setWaResult({ waUrl: json.waUrl, driverName: driver.name })
     } catch (err) {
-      // Demo fallback: asignar localmente sin DB
-      setOrders(prev => prev.map(o =>
-        o.id === orderId
-          ? { ...o, driver_id: driver.id, driver_name: driver.name, driver_phone: driver.phone, status: 'assigned' }
-          : o
-      ))
-      const waPhone = `56${driver.phone.replace(/\s+/g, '')}`
-      const driverUrl = `${window.location.origin}/driver/demo-token`
-      const msg = encodeURIComponent(`Hola ${driver.name}, tienes un nuevo delivery en Rishtedar.\n${driverUrl}`)
-      setWaResult({ waUrl: `https://wa.me/${waPhone}?text=${msg}`, driverName: driver.name })
-      console.warn('[assign] DB error — demo mode', err)
+      toast.error('Error al asignar repartidor')
+      console.error('[assign]', err)
     } finally {
       setAssigningId(null)
       setAssignModal(null)
     }
   }
 
-  // ── Advance status (desde el dashboard, override) ─────────────────────────
-  function advanceStatus(orderId: string) {
-    const next: Record<DeliveryStatus, DeliveryStatus> = {
-      assigned: 'pickup', pickup: 'on_route', on_route: 'delivered',
-      delivered: 'delivered', issue: 'assigned',
+  // ── Advance status (desde el dashboard) ───────────────────────────────────
+  async function advanceStatus(orderId: string) {
+    const order = orders.find(o => o.id === orderId)
+    if (!order) return
+
+    const nextApiStatus = API_NEXT_STATUS[order.status]
+    if (!nextApiStatus) return
+
+    // Optimistic update
+    setOrders(prev => prev.map(o =>
+      o.id === orderId ? { ...o, status: UI_NEXT_STATUS[o.status] } : o
+    ))
+
+    if (!order.driver_token) {
+      // Sin token aún no podemos persistir — la UI avanzó visualmente
+      return
     }
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: next[o.status] } : o))
+
+    setAdvancingId(orderId)
+    try {
+      const res = await fetch(`/api/delivery/${order.driver_token}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ status: nextApiStatus }),
+      })
+      if (!res.ok) throw new Error('Error al actualizar estado')
+    } catch {
+      // Revertir optimistic update
+      setOrders(prev => prev.map(o =>
+        o.id === orderId ? { ...o, status: order.status } : o
+      ))
+      toast.error('Error al actualizar estado del pedido')
+    } finally {
+      setAdvancingId(null)
+    }
+  }
+
+  // ── Request external driver (Uber Direct) ─────────────────────────────────
+  async function handleRequestExternal(orderId: string) {
+    setRequestingExternal(true)
+    try {
+      const businessId = getBusinessId()
+      const res = await fetch('/api/delivery/request-external', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ order_id: orderId, business_id: businessId }),
+      })
+      const json = await res.json()
+      if (!json.configured) {
+        toast.info('Uber Direct: credenciales pendientes. Se activará automáticamente cuando estén configuradas.')
+      }
+    } catch {
+      toast.error('Error al conectar con Uber Direct')
+    } finally {
+      setRequestingExternal(false)
+    }
   }
 
   // ── Save new driver ────────────────────────────────────────────────────────
@@ -213,29 +321,21 @@ export function DeliveryView() {
       return
     }
     setSavingDriver(true)
-    const branch = JSON.parse(localStorage.getItem('rishtedar_branch') || '{}')
-    const businessId = branch?.id || 'providencia'
+    const businessId = getBusinessId()
 
     try {
       const res = await fetch('/api/drivers', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...driverForm, business_id: businessId }),
+        body:    JSON.stringify({ ...driverForm, business_id: businessId }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
       setDrivers(prev => [json.driver, ...prev])
-      toast.success(`${json.driver.name} registrado como driver`)
-    } catch {
-      // Demo fallback
-      const newDriver: Driver = {
-        id: `demo-${Date.now()}`, business_id: businessId,
-        name: driverForm.name, phone: driverForm.phone,
-        vehicle: driverForm.vehicle, zone: driverForm.zone || null,
-        is_active: true, created_at: new Date().toISOString(),
-      }
-      setDrivers(prev => [newDriver, ...prev])
-      toast.success(`${newDriver.name} registrado (modo demo)`)
+      toast.success(`${json.driver.name} registrado`)
+    } catch (err) {
+      toast.error('Error al registrar repartidor')
+      console.error('[saveDriver]', err)
     } finally {
       setSavingDriver(false)
       setDriverForm(EMPTY_FORM)
@@ -249,18 +349,20 @@ export function DeliveryView() {
     setDrivers(prev => prev.map(d => d.id === driver.id ? { ...d, is_active: newVal } : d))
     try {
       await fetch(`/api/drivers?id=${driver.id}`, {
-        method: 'PATCH',
+        method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_active: newVal }),
+        body:    JSON.stringify({ is_active: newVal }),
       })
     } catch { /* silencioso */ }
   }
 
-  const active      = orders.filter(o => o.status !== 'delivered')
-  const delivered   = orders.filter(o => o.status === 'delivered')
-  const unassigned  = orders.filter(o => !o.driver_id && o.status === 'assigned')
+  // ── Derived state ──────────────────────────────────────────────────────────
+  const active        = orders.filter(o => o.status !== 'delivered')
+  const delivered     = orders.filter(o => o.status === 'delivered')
+  const unassigned    = orders.filter(o => !o.driver_id)
   const activeDrivers = drivers.filter(d => d.is_active)
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
 
@@ -269,16 +371,29 @@ export function DeliveryView() {
         <div>
           <h1 className="text-2xl font-semibold text-warm-900">Delivery</h1>
           <p className="text-warm-500 text-sm mt-0.5">
-            {active.length} en curso · {delivered.length} entregados hoy
-            {unassigned.length > 0 && (
+            {loadingOrders
+              ? 'Cargando pedidos…'
+              : `${active.length} en curso · ${delivered.length} entregados hoy`
+            }
+            {!loadingOrders && unassigned.length > 0 && (
               <span className="ml-2 text-amber-600 font-medium">· {unassigned.length} sin repartidor</span>
             )}
           </p>
         </div>
-        <span className="flex items-center gap-1.5 text-emerald-600 text-xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Tiempo real
-        </span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchOrders}
+            disabled={loadingOrders}
+            className="p-1.5 text-warm-400 hover:text-warm-700 transition-colors disabled:opacity-40"
+            title="Actualizar"
+          >
+            <RefreshCw size={14} className={loadingOrders ? 'animate-spin' : ''} />
+          </button>
+          <span className="flex items-center gap-1.5 text-emerald-600 text-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Tiempo real
+          </span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
@@ -286,17 +401,32 @@ export function DeliveryView() {
         {/* ── Orders column ──────────────────────────────────────────────── */}
         <div className="xl:col-span-2 space-y-3">
 
+          {/* Loading skeleton */}
+          {loadingOrders && (
+            <div className="space-y-2">
+              {[1, 2].map(i => (
+                <div key={i} className="bg-white border border-warm-200 h-16 animate-pulse" />
+              ))}
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!loadingOrders && orders.length === 0 && (
+            <div className="bg-white border border-warm-200 py-14 text-center">
+              <Truck size={28} className="text-warm-300 mx-auto mb-3" />
+              <p className="text-warm-500 text-sm">No hay pedidos de delivery hoy</p>
+              <p className="text-warm-400 text-xs mt-1">Los pedidos confirmados aparecerán aquí automáticamente</p>
+            </div>
+          )}
+
+          {/* Active orders */}
           {active.map(order => {
-            const cfg = STATUS_CONFIG[order.status]
+            const cfg          = STATUS_CONFIG[order.status]
             const isUnassigned = !order.driver_id
-            const Icon = isUnassigned ? User : cfg.icon
-            const driver = drivers.find(d => d.id === order.driver_id)
-            const isExpanded = expanded === order.id
-            const canAdvance = order.status !== 'delivered' && !!order.driver_id
-            const nextLabel: Record<DeliveryStatus, string> = {
-              assigned: '→ Recogiendo', pickup: '→ En camino', on_route: '→ Entregado',
-              delivered: '', issue: '',
-            }
+            const Icon         = isUnassigned ? User : cfg.icon
+            const driver       = drivers.find(d => d.id === order.driver_id)
+            const isExpanded   = expanded === order.id
+            const canAdvance   = order.status !== 'delivered' && !!order.driver_id
 
             return (
               <div key={order.id} className="bg-white border border-warm-200 overflow-hidden">
@@ -304,12 +434,12 @@ export function DeliveryView() {
                 <div className="h-0.5 bg-warm-100">
                   <div
                     className={`h-full transition-all duration-500 ${
-                      isUnassigned             ? 'bg-amber-300' :
+                      isUnassigned              ? 'bg-amber-300'  :
                       order.status === 'delivered' ? 'bg-emerald-500' :
                       order.status === 'on_route'  ? 'bg-purple-500' :
                       order.status === 'pickup'    ? 'bg-blue-500'   : 'bg-amber-400'
                     }`}
-                    style={{ width: isUnassigned ? '0%' : `${(cfg.step / 4) * 100}%` }}
+                    style={{ width: isUnassigned ? '5%' : `${(cfg.step / 4) * 100}%` }}
                   />
                 </div>
 
@@ -332,16 +462,11 @@ export function DeliveryView() {
                       {order.address}
                     </p>
                   </div>
-                  <div className="shrink-0 text-right hidden sm:block">
-                    {order.estimated_delivery && (
-                      <>
-                        <p className="text-warm-700 font-medium text-sm">{order.estimated_delivery}</p>
-                        <p className="text-warm-400 text-xs">estimado</p>
-                      </>
-                    )}
+                  <div className="shrink-0 text-right">
+                    <p className="text-warm-700 font-medium text-sm">{formatCLP(order.total)}</p>
                   </div>
                   {isExpanded
-                    ? <ChevronUp size={14} className="text-warm-400 shrink-0" />
+                    ? <ChevronUp  size={14} className="text-warm-400 shrink-0" />
                     : <ChevronDown size={14} className="text-warm-400 shrink-0" />
                   }
                 </div>
@@ -349,10 +474,11 @@ export function DeliveryView() {
                 {/* Expanded detail */}
                 {isExpanded && (
                   <div className="border-t border-warm-100 px-5 py-4 bg-warm-50 space-y-4">
-                    {/* Steps */}
+
+                    {/* Progress steps */}
                     <div className="flex items-center gap-0">
                       {STEPS.map((step, i) => {
-                        const done = cfg.step > i
+                        const done    = cfg.step > i
                         const current = cfg.step === i + 1
                         return (
                           <div key={step} className="flex-1 flex items-center">
@@ -380,17 +506,19 @@ export function DeliveryView() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
                       <div>
                         <p className="text-warm-400 uppercase tracking-wider text-[10px] mb-1">Platos</p>
-                        {order.items.map(item => <p key={item} className="text-warm-700">· {item}</p>)}
+                        {order.items.length > 0
+                          ? order.items.map(item => <p key={item} className="text-warm-700">· {item}</p>)
+                          : <p className="text-warm-400 italic">Sin detalle</p>
+                        }
                       </div>
                       <div>
                         <p className="text-warm-400 uppercase tracking-wider text-[10px] mb-1">Destino</p>
-                        <p className="text-warm-700">{order.address}</p>
+                        <p className="text-warm-700 leading-snug">{order.address}</p>
                         {order.notes && <p className="text-amber-600 mt-1">⚠ {order.notes}</p>}
                       </div>
                       <div>
                         <p className="text-warm-400 uppercase tracking-wider text-[10px] mb-1">Total</p>
                         <p className="text-warm-900 font-semibold">{formatCLP(order.total)}</p>
-                        <p className="text-warm-400 mt-1">{order.distance_km} km</p>
                       </div>
                     </div>
 
@@ -408,6 +536,18 @@ export function DeliveryView() {
                           <a href={`tel:${driver.phone}`} className="ml-2 p-1.5 text-warm-400 hover:text-warm-700 transition-colors">
                             <Phone size={12} />
                           </a>
+                          {/* Link a app del repartidor */}
+                          {order.driver_token && (
+                            <a
+                              href={`/driver/${order.driver_token}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-1 p-1.5 text-warm-400 hover:text-warm-700 transition-colors"
+                              title="Ver app del repartidor"
+                            >
+                              <ExternalLink size={12} />
+                            </a>
+                          )}
                         </div>
                       ) : (
                         <button
@@ -422,14 +562,19 @@ export function DeliveryView() {
                       {canAdvance && (
                         <button
                           onClick={() => advanceStatus(order.id)}
-                          className="flex items-center gap-1.5 bg-brand-800 hover:bg-brand-900 text-ivory text-xs px-4 py-2 transition-colors"
+                          disabled={advancingId === order.id}
+                          className="flex items-center gap-1.5 bg-brand-800 hover:bg-brand-900 disabled:opacity-60 text-ivory text-xs px-4 py-2 transition-colors"
                         >
-                          <Truck size={12} />
-                          {nextLabel[order.status]}
+                          {advancingId === order.id
+                            ? <Loader2 size={12} className="animate-spin" />
+                            : <Truck size={12} />
+                          }
+                          {NEXT_LABEL[order.status]}
                         </button>
                       )}
 
-                      <a href={`tel:${order.customer_phone}`}
+                      <a
+                        href={`tel:${order.customer_phone}`}
                         className="flex items-center gap-1.5 text-warm-500 hover:text-warm-700 text-xs border border-warm-200 px-3 py-2 hover:bg-warm-100 transition-colors"
                       >
                         <Phone size={11} />
@@ -456,7 +601,7 @@ export function DeliveryView() {
                       <span className="text-warm-700 text-sm">{order.customer_name}</span>
                       <span className="text-warm-400 text-xs ml-2 hidden sm:inline">{order.order_number}</span>
                     </div>
-                    <span className="text-warm-500 text-xs hidden sm:block">{order.neighborhood}</span>
+                    <span className="text-warm-500 text-xs hidden sm:block truncate max-w-32">{order.neighborhood}</span>
                     <span className="text-warm-600 text-sm font-medium">{formatCLP(order.total)}</span>
                   </div>
                 ))}
@@ -468,7 +613,6 @@ export function DeliveryView() {
         {/* ── Drivers column ─────────────────────────────────────────────── */}
         <div className="space-y-4">
 
-          {/* Drivers list + enrollment */}
           <div className="bg-white border border-warm-200">
             <div className="px-4 py-3 border-b border-warm-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -520,7 +664,7 @@ export function DeliveryView() {
                       <option value="a_pie">A pie</option>
                     </select>
                     <input
-                      type="text" placeholder="Zona (opcional, ej: Providencia Norte)"
+                      type="text" placeholder="Zona (ej: Providencia Norte)"
                       value={driverForm.zone}
                       onChange={e => setDriverForm(v => ({ ...v, zone: e.target.value }))}
                       className="w-full px-3 py-2 border border-warm-200 text-sm focus:outline-none focus:border-brand-400 bg-white"
@@ -538,7 +682,7 @@ export function DeliveryView() {
                         disabled={savingDriver}
                         className="flex-1 bg-brand-700 hover:bg-brand-800 disabled:opacity-60 text-ivory py-2 text-xs uppercase tracking-wider transition-colors"
                       >
-                        {savingDriver ? 'Guardando...' : 'Registrar'}
+                        {savingDriver ? 'Guardando…' : 'Registrar'}
                       </button>
                     </div>
                   </form>
@@ -588,10 +732,10 @@ export function DeliveryView() {
           {/* KPIs */}
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: 'Tiempo promedio',  value: '28 min',           sub: 'por entrega' },
               { label: 'Activos ahora',    value: String(activeDrivers.length), sub: 'repartidores' },
-              { label: 'Entregados hoy',   value: String(delivered.length), sub: 'pedidos' },
-              { label: 'Sin asignar',      value: String(unassigned.length), sub: 'pedidos', alert: unassigned.length > 0 },
+              { label: 'En curso',         value: String(active.length),        sub: 'pedidos' },
+              { label: 'Entregados hoy',   value: String(delivered.length),     sub: 'pedidos' },
+              { label: 'Sin asignar',      value: String(unassigned.length),    sub: 'pedidos', alert: unassigned.length > 0 },
             ].map(kpi => (
               <div key={kpi.label} className={`bg-white border p-4 ${kpi.alert ? 'border-amber-300 bg-amber-50' : 'border-warm-200'}`}>
                 <p className={`text-2xl font-semibold ${kpi.alert ? 'text-amber-700' : 'text-warm-900'}`}>{kpi.value}</p>
@@ -610,7 +754,9 @@ export function DeliveryView() {
               <p className="font-medium text-warm-900">Asignar repartidor</p>
               <button onClick={() => setAssignModal(null)} className="text-warm-400 hover:text-warm-700">✕</button>
             </div>
-            <div className="divide-y divide-warm-100 max-h-72 overflow-y-auto">
+
+            {/* Drivers list */}
+            <div className="divide-y divide-warm-100 max-h-60 overflow-y-auto">
               {activeDrivers.map(driver => {
                 const VehicleIcon = VEHICLE_ICON[driver.vehicle]
                 const isAssigning = assigningId === driver.id
@@ -629,17 +775,41 @@ export function DeliveryView() {
                       <p className="text-warm-400 text-xs">{VEHICLE_LABEL[driver.vehicle]}{driver.zone ? ` · ${driver.zone}` : ''}</p>
                     </div>
                     {isAssigning
-                      ? <span className="text-brand-600 text-xs">Asignando…</span>
+                      ? <Loader2 size={14} className="text-brand-600 animate-spin" />
                       : <span className="text-emerald-600 text-xs font-medium">Disponible</span>
                     }
                   </button>
                 )
               })}
               {activeDrivers.length === 0 && (
-                <div className="px-5 py-8 text-center text-warm-400 text-sm">
+                <div className="px-5 py-6 text-center text-warm-400 text-sm">
                   No hay repartidores activos
                 </div>
               )}
+            </div>
+
+            {/* Uber Direct placeholder */}
+            <div className="border-t border-warm-100 px-5 py-4 bg-warm-50">
+              <p className="text-[10px] text-warm-400 uppercase tracking-wider mb-3">O solicitar repartidor externo</p>
+              <button
+                onClick={() => handleRequestExternal(assignModal)}
+                disabled={requestingExternal}
+                className="w-full flex items-center justify-between px-4 py-3 border border-warm-200 hover:border-warm-300 bg-white hover:bg-warm-50 transition-colors disabled:opacity-60"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 bg-black rounded flex items-center justify-center shrink-0">
+                    <span className="text-white text-[10px] font-bold">U</span>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-warm-800 text-sm font-medium">Uber Direct</p>
+                    <p className="text-warm-400 text-xs">Repartidor bajo demanda · ~15 min</p>
+                  </div>
+                </div>
+                {requestingExternal
+                  ? <Loader2 size={14} className="text-warm-400 animate-spin" />
+                  : <span className="text-[10px] text-amber-600 font-medium bg-amber-50 border border-amber-200 px-2 py-0.5">Próximamente</span>
+                }
+              </button>
             </div>
           </div>
         </div>

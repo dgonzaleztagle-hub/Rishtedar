@@ -1,11 +1,12 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { Suspense } from 'react'
+import { Suspense, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { CheckCircle2, Clock, Phone, UtensilsCrossed } from 'lucide-react'
 import Link from 'next/link'
 import { NotificationPrompt } from '@/components/pwa/NotificationPrompt'
+import { trackEvent } from '@/lib/analytics/tracker'
 
 function ConfirmationContent() {
   const params = useSearchParams()
@@ -13,6 +14,15 @@ function ConfirmationContent() {
   const status = params.get('status')
 
   const isPending = status === 'pending'
+
+  // Disparar purchase una sola vez al aterrizar en esta página.
+  // Cubre tanto el flujo directo como el retorno desde MercadoPago.
+  useEffect(() => {
+    if (orderId) {
+      trackEvent('purchase', { order_id: orderId, status: status ?? 'confirmed' })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="container mx-auto px-6 py-16 max-w-2xl">

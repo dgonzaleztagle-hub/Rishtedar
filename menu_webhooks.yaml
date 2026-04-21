@@ -1,0 +1,107 @@
+menu_changed:
+  post:
+    tags:
+      - WebHooks
+    summary: Monitoreo de cambios en el menú
+    description: |
+      Se ha habilitado un webhook via POST para notificar cambios en el menú del restaurante.
+      Este servicio llamará al endpoint configurado del sistema integrado cuando se detecten
+      modificaciones en productos, categorías, precios o disponibilidad en el menú de Toteat.
+      
+      
+      El webhook puede enviar el menú completo o parcial, dependiendo del tipo de cambio detectado.
+      
+      
+      El campo `partial` indica si se trata de una actualización parcial o completa del menú.
+
+
+      ### Configuración
+
+
+      Para recibir notificaciones automáticas de cambios en el menú, debes activar
+      el **Post Hook de Productos** desde el panel de administración de Toteat:
+
+      1. Ingresa a **Configuración del API** desde tu panel de administración en Toteat.  
+      2. Dirígete a la pestaña **Productos**.  
+      3. Activa el switch **Post Hook Productos Activo**.  
+      4. En el campo **Post Hook URL**, ingresa la URL donde deseas recibir las notificaciones.  
+      5. Marca la opción **Enviar todos los productos** si deseas recibir tanto
+        productos activos como inactivos (incluyendo su estado actual).  
+      6. En **Post Hook Tipo de Autorización**, selecciona el método de autenticación requerido por tu endpoint:
+          - **Sin autorización**  
+          - **Custom Headers**  
+          - **Authorization: Basic**  
+      7. En el campo **Authorization**, ingresa el token o credenciales necesarias
+        según el método elegido.  
+
+          > 💡 Ejemplo: si tu API utiliza autenticación Bearer, deberías ingresar:
+          >
+          > `Bearer mitoken123`
+      
+
+      <img src="./assets/10.png" />
+
+
+      ### ¿Cuándo se activa?
+
+
+      El webhook se dispara en cualquiera de los siguientes casos:
+
+      - Creación, edición o eliminación de productos.
+      - Cambios en el estado de productos (activo/inactivo).
+      - Modificaciones en categorías.
+      - Actualizaciones en modificadores o extras.
+      - Cambios en precios o listas de precios.
+
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                description: |
+                  Lista de productos del menú. Puede ser completa o parcial dependiendo
+                  del valor del campo `partial`.
+                items:
+                  $ref: '#/components/schemas/Item'
+              ok:
+                type: boolean
+                example: true
+                description: Indica si la operación fue exitosa
+              time:
+                type: string
+                format: date-time
+                example: "2025-08-20T17:07:50Z"
+                description: Timestamp de cuando se generó la notificación
+              ver:
+                type: string
+                example: "1.0"
+                description: Versión de la API de webhooks
+              msg:
+                type: object
+                properties:
+                  texto:
+                    type: string
+                    example: "Product change sent."
+                    description: Mensaje descriptivo de la notificación
+                  tipo:
+                    type: integer
+                    example: 1
+                    description: Tipo de mensaje (1 = cambio de producto)
+              restaurantId:
+                type: integer
+                example: 6498071199350784
+                description: ID del restaurante que generó la notificación
+              localNumber:
+                type: integer
+                example: 1
+                description: Número del local que generó la notificación
+              partial:
+                type: boolean
+                example: true
+                description: |
+                  Indica si es una actualización parcial o completa del menú.
+                  - true: Solo incluye productos modificados
+                  - false: Incluye el menú completo (los productos faltantes deben considerarse eliminados)

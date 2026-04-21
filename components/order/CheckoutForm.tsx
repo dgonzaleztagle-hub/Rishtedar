@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useCartStore } from '@/lib/store/cart'
 import { formatCLP } from '@/lib/utils'
 import { toast } from 'sonner'
+import { trackEvent } from '@/lib/analytics/tracker'
 import {
   MapPin, Phone, User, ChevronRight, Lock,
   Smartphone, CreditCard, Banknote, Tag
@@ -58,6 +59,7 @@ export function CheckoutForm() {
     }
 
     setLoading(true)
+    trackEvent('begin_checkout', { total, items_count: items.length }, businessId ?? undefined)
 
     try {
       const res = await fetch('/api/orders/create', {
@@ -89,11 +91,17 @@ export function CheckoutForm() {
       const { orderId, preferenceUrl } = await res.json()
 
       // Redirect to MercadoPago checkout
+      trackEvent('purchase', {
+        order_id: orderId,
+        total,
+        items_count: items.length,
+        order_type: orderType,
+      }, businessId ?? undefined)
+
       if (preferenceUrl) {
         clear()
         window.location.href = preferenceUrl
       } else {
-        // Fallback for demo
         clear()
         router.push(`/order/confirmation?order=${orderId}`)
       }

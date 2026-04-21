@@ -8,6 +8,7 @@ export interface DashboardReservation {
   status: ReservationStatus
   phone: string
   local: string
+  business_id: string
   request: string
 }
 

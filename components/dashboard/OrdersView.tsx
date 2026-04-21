@@ -1,92 +1,69 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Clock, ChefHat, CheckCircle2, XCircle,
   Search, Eye
 } from 'lucide-react'
 import { formatCLP } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
+import { LOCATIONS } from '@/lib/locations'
 import type { OrderStatus } from '@/types'
 
-const DEMO_ORDERS = [
-  {
-    id: 'ord-001', order_number: 'RSH-ABC123', customer_name: 'María González',
-    customer_phone: '+56 9 8765 4321',
-    order_type: 'delivery', final_price: 27800, status: 'preparing' as OrderStatus,
-    items_count: 2, local: 'Providencia',
-    items: ['Chicken Tikka Masala', 'Garlic Naan'],
-    address: 'Av. Providencia 1234, Depto 52',
-    created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'ord-002', order_number: 'RSH-DEF456', customer_name: 'Carlos Rodríguez',
-    customer_phone: '+56 9 7654 3210',
-    order_type: 'dine_in', final_price: 43500, status: 'ready' as OrderStatus,
-    items_count: 4, local: 'Vitacura',
-    items: ['Lamb Rogan Josh', 'Paneer Tikka', 'Dal Makhani', 'Lassi Mango'],
-    address: 'Mesa 4',
-    created_at: new Date(Date.now() - 32 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'ord-003', order_number: 'RSH-GHI789', customer_name: 'Ana Martínez',
-    customer_phone: '+56 9 6543 2109',
-    order_type: 'delivery', final_price: 15900, status: 'confirmed' as OrderStatus,
-    items_count: 1, local: 'Providencia',
-    items: ['Biryani Pollo'],
-    address: 'Los Leones 890, Piso 3',
-    created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'ord-004', order_number: 'RSH-JKL012', customer_name: 'Roberto Pérez',
-    customer_phone: '+56 9 5432 1098',
-    order_type: 'takeaway', final_price: 22300, status: 'pending' as OrderStatus,
-    items_count: 2, local: 'La Reina',
-    items: ['Samosa x2', 'Chicken Korma'],
-    address: 'Retiro en local',
-    created_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'ord-005', order_number: 'RSH-MNO345', customer_name: 'Sofía Herrera',
-    customer_phone: '+56 9 4321 0987',
-    order_type: 'dine_in', final_price: 58700, status: 'completed' as OrderStatus,
-    items_count: 5, local: 'Providencia',
-    items: ['Tandoori Mixed Grill', 'Saag Paneer', 'Gulab Jamun x2', 'Chai x3'],
-    address: 'Mesa 7',
-    created_at: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'ord-006', order_number: 'RSH-PQR678', customer_name: 'Diego Morales',
-    customer_phone: '+56 9 3210 9876',
-    order_type: 'delivery', final_price: 35400, status: 'completed' as OrderStatus,
-    items_count: 3, local: 'La Dehesa',
-    items: ['Butter Chicken', 'Palak Paneer', 'Mango Lassi'],
-    address: 'El Rodeo 12840',
-    created_at: new Date(Date.now() - 120 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'ord-007', order_number: 'RSH-STU901', customer_name: 'Isabel Ruiz',
-    customer_phone: '+56 9 2109 8765',
-    order_type: 'delivery', final_price: 19200, status: 'cancelled' as OrderStatus,
-    items_count: 2, local: 'Vitacura',
-    items: ['Vegetable Biryani', 'Raita'],
-    address: 'Alonso de Córdova 4000',
-    created_at: new Date(Date.now() - 180 * 60 * 1000).toISOString(),
-  },
-]
+// ─── Local name map ───────────────────────────────────────────────────────────
+
+const LOCAL_NAMES: Record<string, string> = Object.fromEntries(
+  LOCATIONS.map(l => [l.id, l.name.replace(/^Rishtedar\s+/i, '')])
+)
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface OrderRow {
+  id:             string
+  order_number:   string
+  customer_name:  string
+  customer_phone: string
+  order_type:     string
+  final_price:    number
+  status:         OrderStatus
+  items:          string[]
+  items_count:    number
+  address:        string
+  created_at:     string
+  business_id:    string
+}
+
+// ─── Config ───────────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; icon: typeof Clock; color: string; bg: string }> = {
-  pending: { label: 'Pendiente', icon: Clock, color: 'text-amber-700', bg: 'bg-amber-50' },
-  confirmed: { label: 'Confirmado', icon: CheckCircle2, color: 'text-blue-700', bg: 'bg-blue-50' },
-  preparing: { label: 'Preparando', icon: ChefHat, color: 'text-purple-700', bg: 'bg-purple-50' },
-  ready: { label: 'Listo', icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50' },
-  completed: { label: 'Completado', icon: CheckCircle2, color: 'text-warm-600', bg: 'bg-warm-100' },
-  cancelled: { label: 'Cancelado', icon: XCircle, color: 'text-red-600', bg: 'bg-red-50' },
+  pending:   { label: 'Pendiente',  icon: Clock,         color: 'text-amber-700',  bg: 'bg-amber-50'  },
+  confirmed: { label: 'Confirmado', icon: CheckCircle2,  color: 'text-blue-700',   bg: 'bg-blue-50'   },
+  preparing: { label: 'Preparando', icon: ChefHat,       color: 'text-purple-700', bg: 'bg-purple-50' },
+  ready:     { label: 'Listo',      icon: CheckCircle2,  color: 'text-emerald-700',bg: 'bg-emerald-50'},
+  completed: { label: 'Completado', icon: CheckCircle2,  color: 'text-warm-600',   bg: 'bg-warm-100'  },
+  cancelled: { label: 'Cancelado',  icon: XCircle,       color: 'text-red-600',    bg: 'bg-red-50'    },
 }
 
 const TYPE_LABEL: Record<string, string> = {
   delivery: '🛵 Delivery',
-  dine_in: '🪑 Local',
+  dine_in:  '🪑 Local',
   takeaway: '📦 Retiro',
+}
+
+const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
+  pending:   'confirmed',
+  confirmed: 'preparing',
+  preparing: 'ready',
+  ready:     'completed',
+  completed: null,
+  cancelled: null,
+}
+
+const NEXT_LABEL: Record<string, string> = {
+  pending:   'Confirmar',
+  confirmed: 'Preparando',
+  preparing: 'Listo',
+  ready:     'Completar',
 }
 
 function timeAgo(iso: string) {
@@ -97,35 +74,115 @@ function timeAgo(iso: string) {
 }
 
 const FILTERS: { key: string; label: string }[] = [
-  { key: 'all', label: 'Todas' },
-  { key: 'pending', label: 'Pendiente' },
+  { key: 'all',       label: 'Todas'      },
+  { key: 'pending',   label: 'Pendiente'  },
   { key: 'confirmed', label: 'Confirmado' },
   { key: 'preparing', label: 'Preparando' },
-  { key: 'ready', label: 'Listo' },
+  { key: 'ready',     label: 'Listo'      },
   { key: 'completed', label: 'Completado' },
 ]
 
-export function OrdersView() {
-  const [orders, setOrders] = useState(DEMO_ORDERS)
-  const [filter, setFilter] = useState('all')
-  const [search, setSearch] = useState('')
-  const [expanded, setExpanded] = useState<string | null>(null)
+function getBusinessId(): string {
+  if (typeof window === 'undefined') return ''
+  try {
+    return JSON.parse(localStorage.getItem('rishtedar_branch') || '{}')?.id ?? ''
+  } catch { return '' }
+}
 
-  function advance(id: string) {
-    const next: Record<OrderStatus, OrderStatus> = {
-      pending: 'confirmed',
-      confirmed: 'preparing',
-      preparing: 'ready',
-      ready: 'completed',
-      completed: 'completed',
-      cancelled: 'cancelled',
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export function OrdersView() {
+  const [orders,   setOrders]   = useState<OrderRow[]>([])
+  const [loading,  setLoading]  = useState(true)
+  const [filter,   setFilter]   = useState('all')
+  const [search,   setSearch]   = useState('')
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [advancing, setAdvancing] = useState<string | null>(null)
+
+  // ── Fetch ──────────────────────────────────────────────────────────────────
+  const fetchOrders = useCallback(async () => {
+    const businessId = getBusinessId()
+    if (!businessId) return
+    try {
+      const res = await fetch(`/api/orders?business_id=${businessId}`)
+      if (!res.ok) throw new Error(await res.text())
+      const json = await res.json()
+      setOrders(json.orders ?? [])
+    } catch (err) {
+      console.error('[OrdersView] fetchOrders', err)
+    } finally {
+      setLoading(false)
     }
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: next[o.status] } : o))
+  }, [])
+
+  // ── Initial load + realtime ────────────────────────────────────────────────
+  useEffect(() => {
+    fetchOrders()
+
+    const supabase    = createClient()
+    const businessId  = getBusinessId()
+    const isAdmin     = !businessId || businessId === 'admin'
+
+    const insertCfg = isAdmin
+      ? { event: 'INSERT' as const, schema: 'public', table: 'orders' }
+      : { event: 'INSERT' as const, schema: 'public', table: 'orders', filter: `business_id=eq.${businessId}` }
+
+    const updateCfg = isAdmin
+      ? { event: 'UPDATE' as const, schema: 'public', table: 'orders' }
+      : { event: 'UPDATE' as const, schema: 'public', table: 'orders', filter: `business_id=eq.${businessId}` }
+
+    const channel = supabase
+      .channel('orders-view')
+      // Nueva orden → refetch para traer items completos
+      .on('postgres_changes', insertCfg, () => {
+        fetchOrders()
+      })
+      // Cambio de estado → actualizar en local state directamente
+      .on('postgres_changes', updateCfg, (payload) => {
+        const updated = payload.new as { id: string; status: OrderStatus }
+        if (!updated?.id) return
+        setOrders(prev => prev.map(o =>
+          o.id === updated.id ? { ...o, status: updated.status } : o
+        ))
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [fetchOrders])
+
+  // ── Advance status ─────────────────────────────────────────────────────────
+  async function advance(id: string) {
+    const order = orders.find(o => o.id === id)
+    if (!order) return
+    const next = NEXT_STATUS[order.status]
+    if (!next) return
+
+    // Optimistic update
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: next } : o))
+    setAdvancing(id)
+
+    try {
+      const res = await fetch('/api/orders', {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ id, status: next }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+    } catch (err) {
+      console.error('[OrdersView] advance', err)
+      // Revertir
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, status: order.status } : o))
+    } finally {
+      setAdvancing(null)
+    }
   }
 
+  // ── Derived ────────────────────────────────────────────────────────────────
   const filtered = orders.filter(o => {
     const matchFilter = filter === 'all' || o.status === filter
-    const matchSearch = !search || o.customer_name.toLowerCase().includes(search.toLowerCase()) || o.order_number.toLowerCase().includes(search.toLowerCase())
+    const matchSearch = !search ||
+      o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
+      o.order_number.toLowerCase().includes(search.toLowerCase())
     return matchFilter && matchSearch
   })
 
@@ -137,7 +194,9 @@ export function OrdersView() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-warm-900">Órdenes</h1>
-          <p className="text-warm-500 text-sm mt-0.5">{active} activas · {orders.length} hoy</p>
+          <p className="text-warm-500 text-sm mt-0.5">
+            {loading ? '…' : `${active} activas · ${orders.length} en las últimas 24 h`}
+          </p>
         </div>
         <span className="flex items-center gap-1.5 text-emerald-600 text-xs">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -176,22 +235,21 @@ export function OrdersView() {
       {/* Orders Table */}
       <div className="bg-white border border-warm-200">
         <div className="divide-y divide-warm-100">
-          {filtered.length === 0 && (
+          {loading && (
+            <div className="px-6 py-12 text-center text-warm-400 text-sm">Cargando órdenes…</div>
+          )}
+          {!loading && filtered.length === 0 && (
             <div className="px-6 py-12 text-center text-warm-400 text-sm">
               No hay órdenes que coincidan
             </div>
           )}
           {filtered.map(order => {
-            const cfg = STATUS_CONFIG[order.status]
-            const Icon = cfg.icon
+            const cfg        = STATUS_CONFIG[order.status]
+            const Icon       = cfg.icon
             const isExpanded = expanded === order.id
-            const canAdvance = ['pending', 'confirmed', 'preparing', 'ready'].includes(order.status)
-            const nextLabel: Record<string, string> = {
-              pending: 'Confirmar',
-              confirmed: 'Preparando',
-              preparing: 'Listo',
-              ready: 'Completar',
-            }
+            const canAdvance = NEXT_STATUS[order.status] !== null
+            const isAdv      = advancing === order.id
+            const localName  = LOCAL_NAMES[order.business_id] ?? order.business_id
 
             return (
               <div key={order.id}>
@@ -212,7 +270,8 @@ export function OrdersView() {
                       <span className="text-warm-400 text-xs hidden sm:inline">{order.order_number}</span>
                     </div>
                     <p className="text-warm-500 text-xs mt-0.5">
-                      {TYPE_LABEL[order.order_type]} · {order.local} · {order.items_count} platos
+                      {TYPE_LABEL[order.order_type] ?? order.order_type} · {localName}
+                      {order.items_count > 0 ? ` · ${order.items_count} platos` : ''}
                     </p>
                   </div>
 
@@ -227,9 +286,10 @@ export function OrdersView() {
                     {canAdvance && (
                       <button
                         onClick={() => advance(order.id)}
-                        className="bg-brand-800 hover:bg-brand-900 text-ivory text-xs px-3 py-1.5 transition-colors hidden sm:block"
+                        disabled={isAdv}
+                        className="bg-brand-800 hover:bg-brand-900 text-ivory text-xs px-3 py-1.5 transition-colors hidden sm:block disabled:opacity-50"
                       >
-                        {nextLabel[order.status]}
+                        {isAdv ? '…' : NEXT_LABEL[order.status]}
                       </button>
                     )}
                     <Eye size={14} className="text-warm-400" />
@@ -242,13 +302,18 @@ export function OrdersView() {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-3 text-xs">
                       <div>
                         <p className="text-warm-400 uppercase tracking-wider mb-1">Platos</p>
-                        <ul className="space-y-0.5">
-                          {order.items.map(i => <li key={i} className="text-warm-700">· {i}</li>)}
-                        </ul>
+                        {order.items.length > 0
+                          ? <ul className="space-y-0.5">{order.items.map((i, idx) => <li key={idx} className="text-warm-700">· {i}</li>)}</ul>
+                          : <p className="text-warm-400">Sin detalle</p>
+                        }
                       </div>
                       <div>
-                        <p className="text-warm-400 uppercase tracking-wider mb-1">Dirección</p>
-                        <p className="text-warm-700">{order.address}</p>
+                        <p className="text-warm-400 uppercase tracking-wider mb-1">
+                          {order.order_type === 'delivery' ? 'Dirección' : 'Tipo'}
+                        </p>
+                        <p className="text-warm-700">
+                          {order.order_type === 'delivery' ? (order.address || 'Sin dirección') : TYPE_LABEL[order.order_type]}
+                        </p>
                       </div>
                       <div>
                         <p className="text-warm-400 uppercase tracking-wider mb-1">Contacto</p>
@@ -263,9 +328,10 @@ export function OrdersView() {
                     {canAdvance && (
                       <button
                         onClick={() => advance(order.id)}
-                        className="mt-3 sm:hidden bg-brand-800 text-ivory text-xs px-4 py-2 transition-colors"
+                        disabled={isAdv}
+                        className="mt-3 sm:hidden bg-brand-800 text-ivory text-xs px-4 py-2 transition-colors disabled:opacity-50"
                       >
-                        → {nextLabel[order.status]}
+                        → {NEXT_LABEL[order.status]}
                       </button>
                     )}
                   </div>

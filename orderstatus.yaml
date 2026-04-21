@@ -1,0 +1,125 @@
+orderstatus:
+  get:
+    tags:
+      - Endpoints
+    parameters:
+    - name: xir
+      in: query
+      description: Identificador del restaurante
+      required: true
+      schema:
+        type: string
+    - name: xil
+      in: query
+      description: Identificador del local asociado al restaurante
+      required: true
+      schema:
+        type: string
+    - name: xiu
+      in: query
+      description: Identificador del usuario 
+      required: true
+      schema:
+        type: string
+    - name: xapitoken
+      in: query
+      description: Token habilitado para que la herramienta externa pueda consumir el API
+      required: true
+      schema:
+        type: string
+    - name: ic
+      in: query
+      description: Identificador de la orden
+      required: true
+      schema:
+        type: string
+    - name: body_detail_type
+      in: query
+      description: >-
+        Nivel de detalle de la respuesta. Solo se toma en cuenta cuando no se envía el parámetro `det`.
+      required: false
+      schema:
+        type: string
+        enum: [ONLY_STATUS, ALL_INFORMATION, DELIVERY_INFORMATION]
+    responses:
+      '200':
+        description: Estado de órdenes obtenido exitosamente
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/OrderStatusResult'
+                - $ref: '#/components/schemas/DetailedOrderStatusResult'
+                - $ref: '#/components/schemas/OrderStatusListingResult'
+                - $ref: '#/components/schemas/DetailedOrderStatusListingResult'
+                - $ref: '#/components/schemas/DeliveryOrderPayload'
+      '400':
+        $ref: '#/components/responses/InvalidCredentials'
+      '429':
+        $ref: '#/components/responses/TooManyRequests'
+
+    operationId: getStatus
+    summary: Monitoreo del estado de la orden
+    description: >-
+      Se ha habilitado un servicio en el API de Toteat para dicho fin que debe ser consumido via GET, 
+      este devolverá contenido formateado como application/json en utf-8.
+      
+      ### Modos de Operación:
+      
+
+      **1. Consulta Individual (por ID de orden)**
+
+
+        - Se utiliza cuando se envía el parámetro `ic` (Identificador de orden)
+        - Retorna el estado de una orden específica
+        - Formato de respuesta depende del parámetro `det`
+      
+      **2. Listado de Órdenes Abiertas** 
+        - Se utiliza cuando se envía el parámetro `listing` (cualquier valor)
+        - Retorna todas las órdenes con estado OPEN
+        - Formato de respuesta depende del parámetro `det`
+      
+      ### Estructura de Respuesta:
+      En respuesta a la solicitud, se retornará un diccionario que contiene 3 campos:
+        - `msg`: contiene el mensaje de la solicitud realizada
+        - `ok`: señala si la solicitud fue exitosa  
+        - `data`: contiene la información relacionada a la orden(es)
+      
+      ### Parámetro `det`:
+        - `det=false` (valor por defecto): Respuesta simplificada
+        - `det=true`: Respuesta detallada con información completa de la orden
+
+      ### Parámetro `body_detail_type`:
+        - Se utiliza solo cuando no se envía el parámetro `det`.
+        - Valores posibles: `ONLY_STATUS`, `ALL_INFORMATION`, `DELIVERY_INFORMATION`
+        - `ONLY_STATUS`: equivalente a enviar `det=false`
+        - `ALL_INFORMATION`: equivalente a enviar `det=true`
+        - `DELIVERY_INFORMATION`: devuelve la estructura definida en `DeliveryOrderPayload`
+      
+      ### Campos del Estado Básico (det=false):
+      El campo `data` es un objeto con los siguientes campos cuando se consulta una orden individual:
+      
+
+        - `orderReference`: Es el ID enviado por el usuario externo de la API, de manera de que pueda hacer referencia a sus ordenes generadas. Es STRING de largo variable sin limite.
+        - `orderStatus`: Es un estado general, puede ser `OPEN`, `CANCELLED`, `CLOSED`. Generalmente llegará como OPEN. Si se anula el pedido, será `CANCELLED`, una vez que el pedido se entregue y se liberé el pedido, será `CLOSED`
+        - `orderId`: Es el ID interno de la orden en Toteat, numero único sin repetición, no es correlativo. Entero de 16 digitos.
+        - `modificationDate`: Es la fecha de modificación de la orden, en formato ISO y GMT-0.
+        - `deliveryStatusId`: El estado que manualmente colocan en Toteat para decir si el plato de delivery ya está preparado o en qué paso está.
+          
+      ### Valores de deliveryStatusId:
+        - `40`: Pedido Nuevo
+        - `90`: Impreso en Cocina
+        - `100`: En Preparación
+        - `110`: Terminado de Preparar
+        - `120`: En Reparto
+        - `180`: Entregado a Cliente
+        - `170`: Anulado por Cliente
+        - `172`: Anulado
+        - `175`: No Recibido por Cliente
+        - `200`: Recaudación Recibida en Local
+      
+      ### Cuando se usa listing:
+        El campo `data` se convierte en un array de objetos con la estructura básica o detallada, dependiendo del parámetro `det`.
+
+      ### ⚠️ Límite de solicitudes
+        - 10 solicitudes por segundo
