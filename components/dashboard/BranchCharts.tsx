@@ -202,7 +202,7 @@ export function BranchCharts({ branchId, branchName }: Props) {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number, name: string) => [value, name]}
+                  formatter={(value, name) => [value, name]}
                   contentStyle={{ fontSize: 11, border: '1px solid #e5e0d8', borderRadius: 0 }}
                 />
                 <Legend
