@@ -104,6 +104,7 @@ interface DrawButton {
 
 interface RunState {
   phase: Phase
+  tutorialStep: 0 | 1 | 2
   score: number
   combo: number
   maxCombo: number
@@ -139,6 +140,7 @@ const CUSTOMER_PORTRAIT_PATHS = [
 function initialRunState(): RunState {
   return {
     phase: 'idle',
+    tutorialStep: 0,
     score: 0,
     combo: 0,
     maxCombo: 0,
@@ -224,6 +226,107 @@ function blendAlpha(hex: string, alpha: string) {
   return `${hex}${alpha}`
 }
 
+function drawTutorialTooltip(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  title: string,
+  body: string
+) {
+  const bw = 320
+  const bh = 66
+  const bx = x - bw / 2
+  const by = y - bh / 2
+
+  ctx.save()
+  ctx.shadowBlur = 24
+  ctx.shadowColor = 'rgba(0,0,0,0.7)'
+  ctx.fillStyle = 'rgba(18,10,7,0.97)'
+  ctx.beginPath()
+  ctx.roundRect(bx, by, bw, bh, 14)
+  ctx.fill()
+  ctx.shadowBlur = 0
+  ctx.strokeStyle = 'rgba(201,149,42,0.75)'
+  ctx.lineWidth = 1.5
+  ctx.beginPath()
+  ctx.roundRect(bx, by, bw, bh, 14)
+  ctx.stroke()
+  ctx.fillStyle = '#f1b865'
+  ctx.font = 'bold 13px sans-serif'
+  ctx.textAlign = 'center'
+  ctx.fillText(title, x, y - 7)
+  ctx.fillStyle = 'rgba(245,223,194,0.88)'
+  ctx.font = '11px sans-serif'
+  ctx.fillText(body, x, y + 13)
+  ctx.restore()
+}
+
+function drawTutorialOverlay(
+  ctx: CanvasRenderingContext2D,
+  state: RunState
+) {
+  if (state.tutorialStep === 0) return
+
+  const pulse = Math.sin(Date.now() * 0.004) * 0.25 + 0.75
+
+  if (state.tutorialStep === 1) {
+    // Glow border around ingredient tray
+    ctx.save()
+    ctx.shadowBlur = 22
+    ctx.shadowColor = `rgba(241,184,101,${pulse * 0.8})`
+    ctx.strokeStyle = `rgba(241,184,101,${pulse})`
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.roundRect(
+      INGREDIENT_TRAY.x - 6,
+      INGREDIENT_TRAY.y - 6,
+      INGREDIENT_TRAY.w + 12,
+      INGREDIENT_TRAY.h + 12,
+      INGREDIENT_TRAY.radius + 6
+    )
+    ctx.stroke()
+    ctx.restore()
+
+    // Dashed border around tutorial customer card
+    const s0 = TABLE_SLOTS[0]
+    ctx.save()
+    ctx.shadowBlur = 12
+    ctx.shadowColor = `rgba(241,184,101,${pulse * 0.5})`
+    ctx.strokeStyle = `rgba(241,184,101,${pulse * 0.7})`
+    ctx.lineWidth = 2
+    ctx.setLineDash([6, 4])
+    ctx.beginPath()
+    ctx.roundRect(s0.x - TABLE_W / 2 - 5, s0.y - TABLE_H / 2 - 5, TABLE_W + 10, TABLE_H + 10, 26)
+    ctx.stroke()
+    ctx.restore()
+
+    drawTutorialTooltip(
+      ctx, W / 2, 68,
+      'Prepara el plato',
+      'Mira el pedido del cliente y selecciona sus ingredientes →'
+    )
+  }
+
+  if (state.tutorialStep === 2) {
+    // Glow border around tutorial customer's table
+    const s0 = TABLE_SLOTS[0]
+    ctx.save()
+    ctx.shadowBlur = 22
+    ctx.shadowColor = `rgba(98,217,160,${pulse * 0.8})`
+    ctx.strokeStyle = `rgba(98,217,160,${pulse})`
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.roundRect(s0.x - TABLE_W / 2 - 6, s0.y - TABLE_H / 2 - 6, TABLE_W + 12, TABLE_H + 12, 28)
+    ctx.stroke()
+    ctx.restore()
+
+    drawTutorialTooltip(
+      ctx, W / 2, 68,
+      '¡Plato listo! ↙',
+      'Toca la mesa del cliente para servir el plato'
+    )
+  }
+}
 
 export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -418,6 +521,10 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
       state.flashGood = state.plateMatch ? 120 : 70
       spawnFloater(x, y - 24, `+ ${INGREDIENT_BY_ID[ingredientId].label}`, state.plateMatch ? 'good' : 'warn')
       playSound(state.plateMatch ? 'combo' : 'select')
+
+      if (state.tutorialStep === 1 && state.plateMatch !== null) {
+        state.tutorialStep = 2
+      }
     },
     [applyPenalty, playSound, spawnFloater]
   )
@@ -457,6 +564,13 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
       state.customers[customer.slot] = null
       state.spawnTimerMs = Math.min(state.spawnTimerMs, 650)
 
+      if (state.tutorialStep === 2) {
+        state.tutorialStep = 0
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('rishtedar_tutorial_done', '1')
+        }
+      }
+
       spawnFloater(TABLE_SLOTS[customer.slot].x, TABLE_SLOTS[customer.slot].y - 76, `+${points} pts`, 'good')
       if (state.combo >= 3) {
         spawnFloater(TABLE_SLOTS[customer.slot].x, TABLE_SLOTS[customer.slot].y - 104, `Combo x${state.combo}`, 'good')
@@ -472,6 +586,23 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
     const next = initialRunState()
     next.phase = 'playing'
     next.lastTick = performance.now()
+
+    const needsTutorial =
+      typeof window !== 'undefined' && !localStorage.getItem('rishtedar_tutorial_done')
+    if (needsTutorial) {
+      next.tutorialStep = 1
+      const tutorialRecipe = RECIPES[0]
+      next.customers[0] = {
+        slot: 0,
+        recipeId: tutorialRecipe.id,
+        recipe: tutorialRecipe,
+        patience: 1,
+        enteredAt: 0,
+        pulse: 0,
+        mood: 'happy',
+      }
+    }
+
     stateRef.current = next
     setEndStats({ score: 0, maxCombo: 0, dishesServed: 0, tier: 1 })
     setGamePhase('playing')
@@ -517,6 +648,9 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
       const dy = tapY - button.y
       return Math.sqrt(dx * dx + dy * dy) <= button.radius
     })
+
+    if (state.tutorialStep === 1 && buttonHit?.type !== 'ingredient') return
+    if (state.tutorialStep === 2 && (buttonHit?.type !== 'table' || buttonHit.key !== '0')) return
 
     if (buttonHit?.type === 'ingredient' && buttonHit.ingredientId) {
       addIngredient(buttonHit.ingredientId, buttonHit.x, buttonHit.y)
@@ -748,9 +882,11 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
       state.lastTick = now
 
       if (state.phase === 'playing') {
-        state.elapsedMs += dt
+        const isTutorial = state.tutorialStep > 0
+
+        if (!isTutorial) state.elapsedMs += dt
         const difficulty = getDifficultyState(state.elapsedMs)
-        state.spawnTimerMs -= dt
+        if (!isTutorial) state.spawnTimerMs -= dt
 
         if (state.chefMoodTimer > 0) {
           state.chefMoodTimer -= dt
@@ -762,7 +898,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
         if (state.flashBad > 0) state.flashBad -= dt
         if (state.flashWarn > 0) state.flashWarn -= dt
 
-        if (state.spawnTimerMs <= 0) {
+        if (!isTutorial && state.spawnTimerMs <= 0) {
           spawnCustomer()
           state.spawnTimerMs = difficulty.spawnIntervalMs + Math.random() * 450
         }
@@ -771,9 +907,12 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
           const customer = state.customers[i]
           if (!customer) continue
 
+          customer.pulse = (customer.pulse + dt * 0.007) % (Math.PI * 2)
+
+          if (isTutorial) continue
+
           const patienceDrain = (dt / 1000 / 28) / difficulty.patienceMultiplier
           customer.patience -= patienceDrain
-          customer.pulse = (customer.pulse + dt * 0.007) % (Math.PI * 2)
           customer.mood =
             customer.patience < 0.28 ? 'impatient' : customer.patience < 0.62 ? 'neutral' : 'happy'
 
@@ -851,6 +990,8 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
         ctx.fillStyle = `rgba(245, 176, 64, ${(state.flashWarn / 180) * 0.05})`
         ctx.fillRect(0, 0, W, H)
       }
+
+      drawTutorialOverlay(ctx, state)
     }
 
     stateRef.current.animId = requestAnimationFrame(loop)
