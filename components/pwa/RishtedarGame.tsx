@@ -1514,10 +1514,10 @@ function drawTables(
     const customerX = cardX + 34
     const customerY = cardY + 87
     const bowlX = cardX + 142
-    const badgeY = cardY + 116
-    const badgeSpacing = 26
-    const badgeRadius = 9
-    const badgeSize = 18
+    const badgeY = cardY + 110
+    const badgeSpacing = 22
+    const badgeRadius = 11
+    const badgeSize = 22
 
     const baseGradient = ctx.createLinearGradient(cardX, cardY, cardX, cardY + TABLE_H)
     baseGradient.addColorStop(0, customer ? 'rgba(60,28,19,0.92)' : 'rgba(29,17,13,0.75)')
@@ -1579,7 +1579,7 @@ function drawTables(
     drawCompactRecipeCard(ctx, bowlX, cardY + 80, customer.recipe, recipeSprites[customer.recipe.id])
 
     const numIngredients = customer.recipe.ingredients.length
-    const badgeStartX = slot.x - ((numIngredients - 1) * badgeSpacing) / 2
+    const badgeStartX = (cardX + 136) - ((numIngredients - 1) * badgeSpacing) / 2
     customer.recipe.ingredients.forEach((ingredientId, ingredientIndex) => {
       drawIngredientBadge(
         ctx,
