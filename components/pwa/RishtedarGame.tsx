@@ -357,16 +357,6 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   const isPortraitViewport = viewportSize.height > viewportSize.width
   const isCompactViewport = viewportSize.width < 980 || viewportSize.height < 760
   const useCompactFullscreenChrome = isFullscreen && isCompactViewport
-
-  const stagePaddingX = isFullscreen ? (useCompactFullscreenChrome ? 4 : 10) : 0
-  const stagePaddingY = isFullscreen ? (useCompactFullscreenChrome ? 4 : isCompactViewport ? 10 : 14) : 0
-  const availableStageWidth = Math.max(280, stageSize.width - stagePaddingX * 2)
-  const availableStageHeight = Math.max(180, stageSize.height - stagePaddingY * 2)
-  const widthLimitedHeight = availableStageWidth * (H / W)
-  const canvasDisplayHeight = Math.min(availableStageHeight, widthLimitedHeight)
-  const canvasDisplayWidth = canvasDisplayHeight * (W / H)
-  const showRotateHint = isFullscreen && isPortraitViewport
-  const showPortraitPrompt = isPortraitViewport && !isFullscreen && !portraitHintDismissed
   const supportsFullscreen =
     typeof document !== 'undefined' && typeof document.documentElement.requestFullscreen === 'function'
   const isProbablyIOSSafari =
@@ -374,6 +364,23 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
     /iPhone|iPad|iPod/i.test(window.navigator.userAgent) &&
     /WebKit/i.test(window.navigator.userAgent) &&
     !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(window.navigator.userAgent)
+  const portraitPreviewMode = isProbablyIOSSafari && isPortraitViewport && !isFullscreen
+
+  const stagePaddingX = isFullscreen ? (useCompactFullscreenChrome ? 4 : 10) : 0
+  const stagePaddingY = isFullscreen ? (useCompactFullscreenChrome ? 4 : isCompactViewport ? 10 : 14) : 0
+  const availableStageWidth = Math.max(280, stageSize.width - stagePaddingX * 2)
+  const availableStageHeight = Math.max(180, stageSize.height - stagePaddingY * 2)
+  const widthLimitedHeight = availableStageWidth * (H / W)
+  const portraitPreviewWidth = Math.max(240, Math.min(availableStageWidth - 20, 340))
+  const canvasDisplayWidth = portraitPreviewMode
+    ? portraitPreviewWidth
+    : Math.min(availableStageWidth, Math.min(availableStageHeight, widthLimitedHeight) * (W / H))
+  const canvasDisplayHeight = portraitPreviewMode
+    ? portraitPreviewWidth * (H / W)
+    : canvasDisplayWidth * (H / W)
+  const showRotateHint = isFullscreen && isPortraitViewport
+  const showPortraitPrompt =
+    isPortraitViewport && !isFullscreen && (portraitPreviewMode || !portraitHintDismissed)
 
   const setGamePhase = useCallback((nextPhase: Phase) => {
     stateRef.current.phase = nextPhase
@@ -649,7 +656,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
 
   const handleCanvasTap = useCallback((tapX: number, tapY: number) => {
     const state = stateRef.current
-    if (state.phase !== 'playing') return
+    if (state.phase !== 'playing' || portraitPreviewMode) return
 
     const buttonHit = state.buttonMap.find((button) => {
       const dx = tapX - button.x
@@ -688,7 +695,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
         spawnFloater(SERVE_HINT.x, SERVE_HINT.y - 38, 'Sin pedido compatible', 'warn')
       }
     }
-  }, [addIngredient, resetPlate, serveCustomer, spawnFloater])
+  }, [addIngredient, portraitPreviewMode, resetPlate, serveCustomer, spawnFloater])
 
   const toggleFullscreen = useCallback(async () => {
     if (!wrapperRef.current) return
@@ -1117,6 +1124,8 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
             height: canvasDisplayHeight,
             maxWidth: '100%',
             maxHeight: '100%',
+            pointerEvents: portraitPreviewMode ? 'none' : 'auto',
+            opacity: portraitPreviewMode ? 0.9 : 1,
           }}
         />
         </div>
@@ -1135,7 +1144,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
                 <h4 className="font-display text-2xl italic text-[#fff5e8]">El Festín de Especias</h4>
                 <p className="mt-2 text-xs leading-relaxed text-[#c7a985]">
                   {isProbablyIOSSafari
-                    ? 'Safari en iPhone no gira con el boton. Gira el telefono manualmente para verlo mejor, o sigue asi si quieres probarlo de inmediato.'
+                    ? 'Safari en iPhone no puede girar el juego con el boton. Te dejo una vista previa, pero para jugar debes girar el telefono manualmente.'
                     : supportsFullscreen
                       ? 'Gira el telefono para una mejor experiencia o activa pantalla completa.'
                       : 'Gira el telefono para una mejor experiencia. Si prefieres, puedes seguir asi.'}
@@ -1150,13 +1159,15 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
                       Pantalla completa
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setPortraitHintDismissed(true)}
-                    className="rounded-full border border-[#6a3c22] bg-[rgba(29,19,14,0.92)] px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#f6ddbd] transition-colors hover:border-[#c9952a]"
-                  >
-                    Seguir igual
-                  </button>
+                  {!portraitPreviewMode && (
+                    <button
+                      type="button"
+                      onClick={() => setPortraitHintDismissed(true)}
+                      className="rounded-full border border-[#6a3c22] bg-[rgba(29,19,14,0.92)] px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#f6ddbd] transition-colors hover:border-[#c9952a]"
+                    >
+                      Seguir igual
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>
