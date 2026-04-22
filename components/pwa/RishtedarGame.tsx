@@ -352,6 +352,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   const [viewportSize, setViewportSize] = useState({ width: W, height: H })
   const [stageSize, setStageSize] = useState({ width: W, height: H })
   const [hudStats, setHudStats] = useState({ score: 0, combo: 0, lives: LIVES_MAX, tier: 1 as DifficultyTier })
+  const [portraitHintDismissed, setPortraitHintDismissed] = useState(false)
 
   const isPortraitViewport = viewportSize.height > viewportSize.width
   const isCompactViewport = viewportSize.width < 980 || viewportSize.height < 760
@@ -365,6 +366,14 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   const canvasDisplayHeight = Math.min(availableStageHeight, widthLimitedHeight)
   const canvasDisplayWidth = canvasDisplayHeight * (W / H)
   const showRotateHint = isFullscreen && isPortraitViewport
+  const showPortraitPrompt = isPortraitViewport && !isFullscreen && !portraitHintDismissed
+  const supportsFullscreen =
+    typeof document !== 'undefined' && typeof document.documentElement.requestFullscreen === 'function'
+  const isProbablyIOSSafari =
+    typeof window !== 'undefined' &&
+    /iPhone|iPad|iPod/i.test(window.navigator.userAgent) &&
+    /WebKit/i.test(window.navigator.userAgent) &&
+    !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(window.navigator.userAgent)
 
   const setGamePhase = useCallback((nextPhase: Phase) => {
     stateRef.current.phase = nextPhase
@@ -971,7 +980,6 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
       drawZones(ctx)
       drawStageSign(ctx, logoSpriteRef.current)
 
-      const difficulty = getDifficultyState(state.elapsedMs)
       state.buttonMap = []
 
       drawTables(
@@ -1053,7 +1061,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
             className="inline-flex items-center gap-2 rounded-full border border-[#6a3c22] bg-[#1d130e] px-3 py-2 text-xs uppercase tracking-[0.22em] text-[#f6ddbd] transition-colors hover:border-[#c9952a]"
           >
             <Expand size={14} />
-            {isFullscreen ? 'Salir' : 'Pantalla completa'}
+            {supportsFullscreen ? (isFullscreen ? 'Salir' : 'Pantalla completa') : 'Expandir'}
           </button>
         </div>
       </div>
@@ -1094,7 +1102,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
               className="inline-flex items-center gap-1.5 rounded-full border border-[#6a3c22] bg-[rgba(29,19,14,0.92)] px-2.5 py-1.5 text-[10px] uppercase tracking-[0.18em] text-[#f6ddbd] backdrop-blur-sm transition-colors hover:border-[#c9952a]"
             >
               <Expand size={12} />
-              <span className="hidden min-[380px]:inline">{isFullscreen ? 'Salir' : 'Full'}</span>
+              <span className="hidden min-[380px]:inline">{supportsFullscreen ? (isFullscreen ? 'Salir' : 'Full') : 'Abrir'}</span>
             </button>
           </div>
         )}
@@ -1114,7 +1122,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
         </div>
 
         <AnimatePresence>
-          {isPortraitViewport && !isFullscreen && (
+          {showPortraitPrompt && (
             <motion.div
               key="portrait-hint"
               initial={{ opacity: 0 }}
@@ -1126,15 +1134,30 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
                 <p className="mb-1 text-[9px] uppercase tracking-[0.32em] text-[#f1b865]">Minijuego semanal</p>
                 <h4 className="font-display text-2xl italic text-[#fff5e8]">El Festín de Especias</h4>
                 <p className="mt-2 text-xs leading-relaxed text-[#c7a985]">
-                  Inclina el teléfono o activa pantalla completa para jugar.
+                  {isProbablyIOSSafari
+                    ? 'Safari en iPhone no gira con el boton. Gira el telefono manualmente para verlo mejor, o sigue asi si quieres probarlo de inmediato.'
+                    : supportsFullscreen
+                      ? 'Gira el telefono para una mejor experiencia o activa pantalla completa.'
+                      : 'Gira el telefono para una mejor experiencia. Si prefieres, puedes seguir asi.'}
                 </p>
-                <button
-                  type="button"
-                  onClick={toggleFullscreen}
-                  className="mt-4 rounded-full bg-[#c9952a] px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#25140c] transition-colors hover:bg-[#e0ae44]"
-                >
-                  Pantalla completa
-                </button>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  {supportsFullscreen && !isProbablyIOSSafari && (
+                    <button
+                      type="button"
+                      onClick={toggleFullscreen}
+                      className="rounded-full bg-[#c9952a] px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#25140c] transition-colors hover:bg-[#e0ae44]"
+                    >
+                      Pantalla completa
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setPortraitHintDismissed(true)}
+                    className="rounded-full border border-[#6a3c22] bg-[rgba(29,19,14,0.92)] px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#f6ddbd] transition-colors hover:border-[#c9952a]"
+                  >
+                    Seguir igual
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}
