@@ -1144,7 +1144,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
                 <h4 className="font-display text-2xl italic text-[#fff5e8]">El Festín de Especias</h4>
                 <p className="mt-2 text-xs leading-relaxed text-[#c7a985]">
                   {isProbablyIOSSafari
-                    ? 'Safari en iPhone no puede girar el juego con el boton. Te dejo una vista previa, pero para jugar debes girar el telefono manualmente.'
+                    ? 'Safari en iPhone no puede girar el juego con el boton. Para jugar correctamente, gira el telefono manualmente.'
                     : supportsFullscreen
                       ? 'Gira el telefono para una mejor experiencia o activa pantalla completa.'
                       : 'Gira el telefono para una mejor experiencia. Si prefieres, puedes seguir asi.'}
