@@ -171,7 +171,7 @@ export const RECIPES: RecipeDefinition[] = [
     ingredients: ['chicken', 'masala-base', 'makhani-cream'],
     assetPath: '/game-assets/dishes/butter-chicken.png',
     visualStyle: { bowl: '#8d3a25', sauce: '#d56d3f', garnish: '#ffd19c' },
-    scoreBase: 145,
+    scoreBase: 150,
   },
   {
     id: 'chicken-biryani',
@@ -179,7 +179,7 @@ export const RECIPES: RecipeDefinition[] = [
     ingredients: ['chicken', 'basmati-rice', 'garam-masala'],
     assetPath: '/game-assets/dishes/chicken-biryani.png',
     visualStyle: { bowl: '#5e4623', sauce: '#d5ab50', garnish: '#f7f1cb' },
-    scoreBase: 155,
+    scoreBase: 150,
   },
   {
     id: 'saag-paneer',
@@ -187,7 +187,7 @@ export const RECIPES: RecipeDefinition[] = [
     ingredients: ['paneer', 'saag', 'garam-masala'],
     assetPath: '/game-assets/dishes/saag-paneer.png',
     visualStyle: { bowl: '#274b2a', sauce: '#3d7a42', garnish: '#f5e8c2' },
-    scoreBase: 140,
+    scoreBase: 150,
   },
   {
     id: 'chana-masala',
@@ -195,7 +195,7 @@ export const RECIPES: RecipeDefinition[] = [
     ingredients: ['chickpeas', 'masala-base', 'garam-masala'],
     assetPath: '/game-assets/dishes/chana-masala.png',
     visualStyle: { bowl: '#6c351f', sauce: '#bb6f32', garnish: '#f4d171' },
-    scoreBase: 145,
+    scoreBase: 150,
   },
   {
     id: 'dal-makhani',

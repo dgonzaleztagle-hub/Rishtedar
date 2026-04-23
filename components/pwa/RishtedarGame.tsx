@@ -44,6 +44,12 @@ const INGREDIENT_SLOTS = [
 ] as const
 const CLEAR_BUTTON = { x: 540, y: 420, w: 130, h: 28 }
 const SERVE_HINT = { x: 540, y: 458, w: 290, h: 28 }
+const EATING_DURATION_MS = 2100
+const TIP_FULL_WINDOW_MS = 2500
+const TIP_LATE_WINDOW_MS = 4500
+const TIP_FULL_POINTS = 25
+const TIP_LATE_POINTS = 10
+const DIRTY_TABLE_PATIENCE = 0.58
 
 type Phase = 'idle' | 'playing' | 'game-over'
 type FloaterTone = 'good' | 'bad' | 'warn'
@@ -62,6 +68,21 @@ interface CustomerState {
   pulse: number
   mood: CustomerMood
 }
+
+type TableTurnoverState =
+  | {
+      kind: 'eating'
+      recipeId: DishId
+      recipe: RecipeDefinition
+      remainingMs: number
+      pulse: number
+    }
+  | {
+      kind: 'dirty'
+      recipeId: DishId
+      recipe: RecipeDefinition
+      elapsedMs: number
+    }
 
 interface Floater {
   id: number
@@ -97,7 +118,7 @@ interface DrawButton {
   y: number
   radius: number
   ingredientId?: IngredientId
-  type: 'ingredient' | 'table' | 'clear'
+  type: 'ingredient' | 'table' | 'clear' | 'cleanup'
 }
 
 interface RunState {
@@ -111,6 +132,7 @@ interface RunState {
   elapsedMs: number
   spawnTimerMs: number
   customers: Array<CustomerState | null>
+  tableStates: Array<TableTurnoverState | null>
   plate: IngredientId[]
   plateMatch: DishId | null
   platePulse: number
@@ -147,6 +169,7 @@ function initialRunState(): RunState {
     elapsedMs: 0,
     spawnTimerMs: 1200,
     customers: [null, null, null, null],
+    tableStates: [null, null, null, null],
     plate: [],
     plateMatch: null,
     platePulse: 0,
@@ -337,6 +360,10 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   const chefSpritesRef = useRef<Partial<Record<ChefMood, HTMLImageElement>>>({})
   const ingredientSpritesRef = useRef<Partial<Record<IngredientId, HTMLImageElement>>>({})
   const recipeSpritesRef = useRef<Partial<Record<DishId, HTMLImageElement>>>({})
+  const cleanupSpritesRef = useRef<{ dirtyPlate: HTMLImageElement | null; tipCoins: HTMLImageElement | null }>({
+    dirtyPlate: null,
+    tipCoins: null,
+  })
   const customerPortraitsRef = useRef<HTMLImageElement[]>([])
   const stateRef = useRef<RunState>(initialRunState())
 
@@ -398,7 +425,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   }, [])
 
   const playSound = useCallback(
-    (type: 'select' | 'error' | 'serve' | 'combo' | 'warning') => {
+    (type: 'select' | 'error' | 'serve' | 'combo' | 'warning' | 'tip' | 'grumble') => {
       if (muted || typeof window === 'undefined') return
 
       try {
@@ -434,6 +461,13 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
           return
         }
 
+        if (type === 'grumble') {
+          note(170, 0, 0.12, 0.06, 'sawtooth')
+          note(145, 0.05, 0.14, 0.05, 'square')
+          note(120, 0.12, 0.18, 0.04, 'sawtooth')
+          return
+        }
+
         if (type === 'error') {
           note(280, 0, 0.08, 0.08, 'sawtooth')
           note(160, 0.05, 0.14, 0.07, 'sawtooth')
@@ -443,6 +477,13 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
         if (type === 'serve') {
           note(740, 0, 0.08, 0.08)
           note(980, 0.05, 0.12, 0.07)
+          return
+        }
+
+        if (type === 'tip') {
+          note(920, 0, 0.06, 0.07)
+          note(1240, 0.04, 0.09, 0.07)
+          note(1460, 0.08, 0.12, 0.06)
           return
         }
 
@@ -544,6 +585,44 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
     [applyPenalty, playSound, spawnFloater]
   )
 
+  const clearTable = useCallback(
+    (slot: number) => {
+      const state = stateRef.current
+      if (state.phase !== 'playing') return
+
+      const tableState = state.tableStates[slot]
+      if (!tableState) return
+
+      if (tableState.kind === 'eating') {
+        spawnFloater(TABLE_SLOTS[slot].x, TABLE_SLOTS[slot].y - 74, 'Aún están comiendo', 'warn')
+        return
+      }
+
+      const tipPoints =
+        tableState.elapsedMs <= TIP_FULL_WINDOW_MS
+          ? TIP_FULL_POINTS
+          : tableState.elapsedMs <= TIP_LATE_WINDOW_MS
+            ? TIP_LATE_POINTS
+            : 0
+
+      state.tableStates[slot] = null
+      state.chefMood = tipPoints > 0 ? 'happy' : 'busy'
+      state.chefMoodTimer = tipPoints > 0 ? 360 : 240
+
+      if (tipPoints > 0) {
+        state.score += tipPoints
+        state.flashGood = Math.max(state.flashGood, 120)
+        spawnFloater(TABLE_SLOTS[slot].x, TABLE_SLOTS[slot].y - 82, `+${tipPoints} propina`, 'good')
+        spawnBurst(TABLE_SLOTS[slot].x, TABLE_SLOTS[slot].y - 26, '#f1b865')
+        playSound('tip')
+      } else {
+        spawnFloater(TABLE_SLOTS[slot].x, TABLE_SLOTS[slot].y - 82, 'Mesa lista', 'warn')
+        playSound('select')
+      }
+    },
+    [playSound, spawnBurst, spawnFloater]
+  )
+
   const serveCustomer = useCallback(
     (customer: CustomerState) => {
       const state = stateRef.current
@@ -577,6 +656,13 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
       state.chefMood = state.combo >= 4 ? 'happy' : 'busy'
       state.chefMoodTimer = state.combo >= 4 ? 700 : 420
       state.customers[customer.slot] = null
+      state.tableStates[customer.slot] = {
+        kind: 'eating',
+        recipeId: customer.recipeId,
+        recipe: customer.recipe,
+        remainingMs: EATING_DURATION_MS,
+        pulse: 0,
+      }
       state.spawnTimerMs = Math.min(state.spawnTimerMs, 650)
 
       if (state.tutorialStep === 2) {
@@ -634,25 +720,41 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
     const state = stateRef.current
     const difficulty = getDifficultyState(state.elapsedMs)
     const maxCustomers = getMaxCustomers(difficulty.tier)
-    const activeCount = state.customers.filter(Boolean).length
+    const activeCount =
+      state.customers.filter(Boolean).length +
+      state.tableStates.filter((tableState) => tableState?.kind === 'eating').length
     if (activeCount >= maxCustomers) return
 
-    const openSlot = state.customers.findIndex((customer) => customer === null)
+    const cleanSlot = state.customers.findIndex(
+      (customer, index) => customer === null && state.tableStates[index] === null
+    )
+    const dirtySlot = state.customers.findIndex(
+      (customer, index) => customer === null && state.tableStates[index]?.kind === 'dirty'
+    )
+    const openSlot = cleanSlot !== -1 ? cleanSlot : dirtySlot
     if (openSlot === -1) return
 
+    const wasDirtyTable = state.tableStates[openSlot]?.kind === 'dirty'
     const recipe = chooseRecipe(difficulty.recipeComplexityWeight)
+    state.tableStates[openSlot] = null
     state.customers[openSlot] = {
       slot: openSlot,
       recipeId: recipe.id,
       recipe,
-      patience: 1,
+      patience: wasDirtyTable ? DIRTY_TABLE_PATIENCE : 1,
       enteredAt: state.elapsedMs,
       pulse: 0,
-      mood: 'neutral',
+      mood: wasDirtyTable ? 'impatient' : 'neutral',
     }
 
-    spawnFloater(TABLE_SLOTS[openSlot].x, TABLE_SLOTS[openSlot].y - 92, recipe.name, 'warn')
-  }, [spawnFloater])
+    if (wasDirtyTable) {
+      spawnFloater(TABLE_SLOTS[openSlot].x, TABLE_SLOTS[openSlot].y - 100, 'Llega molesto', 'bad')
+      spawnFloater(TABLE_SLOTS[openSlot].x, TABLE_SLOTS[openSlot].y - 82, recipe.name, 'warn')
+      playSound('grumble')
+    } else {
+      spawnFloater(TABLE_SLOTS[openSlot].x, TABLE_SLOTS[openSlot].y - 92, recipe.name, 'warn')
+    }
+  }, [playSound, spawnFloater])
 
   const handleCanvasTap = useCallback((tapX: number, tapY: number) => {
     const state = stateRef.current
@@ -677,9 +779,22 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
       return
     }
 
+    if (buttonHit?.type === 'cleanup') {
+      clearTable(Number(buttonHit.key))
+      return
+    }
+
     if (buttonHit?.type === 'table') {
-      const customer = state.customers.find((entry) => entry?.slot === Number(buttonHit.key))
-      if (customer) serveCustomer(customer)
+      const slot = Number(buttonHit.key)
+      const customer = state.customers.find((entry) => entry?.slot === slot)
+      if (customer) {
+        serveCustomer(customer)
+        return
+      }
+
+      if (state.tableStates[slot]?.kind === 'eating') {
+        spawnFloater(TABLE_SLOTS[slot].x, TABLE_SLOTS[slot].y - 74, 'Aún están comiendo', 'warn')
+      }
       return
     }
 
@@ -695,7 +810,7 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
         spawnFloater(SERVE_HINT.x, SERVE_HINT.y - 38, 'Sin pedido compatible', 'warn')
       }
     }
-  }, [addIngredient, portraitPreviewMode, resetPlate, serveCustomer, spawnFloater])
+  }, [addIngredient, clearTable, portraitPreviewMode, resetPlate, serveCustomer, spawnFloater])
 
   const toggleFullscreen = useCallback(async () => {
     if (!wrapperRef.current) return
@@ -869,6 +984,18 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
+    const dirtyPlate = new window.Image()
+    dirtyPlate.src = '/game-assets/table/dirty-plate-pixel.svg'
+
+    const tipCoins = new window.Image()
+    tipCoins.src = '/game-assets/table/tip-coins-pixel.svg'
+
+    cleanupSpritesRef.current = { dirtyPlate, tipCoins }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
     customerPortraitsRef.current = CUSTOMER_PORTRAIT_PATHS.map((src) => {
       const image = new window.Image()
       image.src = src
@@ -959,6 +1086,29 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
           }
         }
 
+        for (let i = 0; i < state.tableStates.length; i += 1) {
+          const tableState = state.tableStates[i]
+          if (!tableState) continue
+
+          if (tableState.kind === 'eating') {
+            tableState.pulse = (tableState.pulse + dt * 0.007) % (Math.PI * 2)
+            tableState.remainingMs -= dt
+
+            if (tableState.remainingMs <= 0) {
+              state.tableStates[i] = {
+                kind: 'dirty',
+                recipeId: tableState.recipeId,
+                recipe: tableState.recipe,
+                elapsedMs: 0,
+              }
+              spawnFloater(TABLE_SLOTS[i].x, TABLE_SLOTS[i].y - 84, 'Levanta la mesa', 'warn')
+            }
+            continue
+          }
+
+          tableState.elapsedMs += dt
+        }
+
         for (const floater of state.floaters) {
           floater.y += floater.vy * (dt / 16)
           floater.alpha -= (dt / 1000) * 1.4
@@ -994,7 +1144,8 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
         state,
         ingredientSpritesRef.current,
         recipeSpritesRef.current,
-        customerPortraitsRef.current
+        customerPortraitsRef.current,
+        cleanupSpritesRef.current
       )
       drawChef(ctx, state, chefSpritesRef.current)
       drawStation(ctx, state, ingredientSpritesRef.current, recipeSpritesRef.current)
@@ -1529,17 +1680,42 @@ function drawIngredientBadge(
   }
 }
 
+function drawPixelIcon(
+  ctx: CanvasRenderingContext2D,
+  sprite: HTMLImageElement | null | undefined,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) {
+  if (!sprite || !sprite.complete || sprite.naturalWidth <= 0) return false
+
+  ctx.save()
+  ctx.imageSmoothingEnabled = false
+  ctx.drawImage(sprite, x - width / 2, y - height / 2, width, height)
+  ctx.restore()
+  return true
+}
+
+function getTipPreview(elapsedMs: number) {
+  if (elapsedMs <= TIP_FULL_WINDOW_MS) return TIP_FULL_POINTS
+  if (elapsedMs <= TIP_LATE_WINDOW_MS) return TIP_LATE_POINTS
+  return 0
+}
+
 function drawTables(
   ctx: CanvasRenderingContext2D,
   state: RunState,
   ingredientSprites: Partial<Record<IngredientId, HTMLImageElement>>,
   recipeSprites: Partial<Record<DishId, HTMLImageElement>>,
-  customerPortraits: HTMLImageElement[]
+  customerPortraits: HTMLImageElement[],
+  cleanupSprites: { dirtyPlate: HTMLImageElement | null; tipCoins: HTMLImageElement | null }
 ) {
   ctx.save()
 
   TABLE_SLOTS.forEach((slot, index) => {
     const customer = state.customers[index]
+    const tableState = state.tableStates[index]
     const cardX = slot.x - TABLE_W / 2
     const cardY = slot.y - TABLE_H / 2
     const patienceWidth = TABLE_W - 20
@@ -1554,8 +1730,26 @@ function drawTables(
     const badgeSize = 22
 
     const baseGradient = ctx.createLinearGradient(cardX, cardY, cardX, cardY + TABLE_H)
-    baseGradient.addColorStop(0, customer ? 'rgba(60,28,19,0.92)' : 'rgba(29,17,13,0.75)')
-    baseGradient.addColorStop(1, customer ? 'rgba(31,18,15,0.98)' : 'rgba(18,12,10,0.88)')
+    baseGradient.addColorStop(
+      0,
+      customer
+        ? 'rgba(60,28,19,0.92)'
+        : tableState?.kind === 'dirty'
+          ? 'rgba(66,36,24,0.92)'
+          : tableState?.kind === 'eating'
+            ? 'rgba(63,34,22,0.92)'
+            : 'rgba(29,17,13,0.75)'
+    )
+    baseGradient.addColorStop(
+      1,
+      customer
+        ? 'rgba(31,18,15,0.98)'
+        : tableState?.kind === 'dirty'
+          ? 'rgba(28,18,15,0.98)'
+          : tableState?.kind === 'eating'
+            ? 'rgba(32,20,16,0.98)'
+            : 'rgba(18,12,10,0.88)'
+    )
     ctx.fillStyle = baseGradient
     ctx.beginPath()
     ctx.roundRect(cardX, cardY, TABLE_W, TABLE_H, 22)
@@ -1565,6 +1759,10 @@ function drawTables(
       ? customer.mood === 'impatient'
         ? 'rgba(234,115,70,0.84)'
         : 'rgba(201,149,42,0.48)'
+      : tableState?.kind === 'dirty'
+        ? 'rgba(201,149,42,0.48)'
+        : tableState?.kind === 'eating'
+          ? 'rgba(244,187,101,0.44)'
       : 'rgba(201,149,42,0.18)'
     ctx.lineWidth = customer ? 2 : 1
     ctx.beginPath()
@@ -1576,7 +1774,7 @@ function drawTables(
     ctx.roundRect(cardX + 8, cardY + 8, TABLE_W - 16, 40, 14)
     ctx.fill()
 
-    if (!customer) {
+    if (!customer && !tableState) {
       ctx.fillStyle = 'rgba(201,149,42,0.35)'
       ctx.font = '600 12px sans-serif'
       ctx.textAlign = 'center'
@@ -1584,7 +1782,71 @@ function drawTables(
       ctx.fillStyle = 'rgba(214, 195, 176, 0.4)'
       ctx.font = '11px sans-serif'
       ctx.fillText('Esperando cliente', slot.x, slot.y + 12)
+      return
+    }
+
+    if (!customer && tableState?.kind === 'eating') {
+      const eatingProgress = Math.max(0, tableState.remainingMs / EATING_DURATION_MS)
+
+      ctx.textAlign = 'center'
+      ctx.fillStyle = '#fff5e8'
+      ctx.font = '700 11px sans-serif'
+      ctx.fillText(tableState.recipe.name, slot.x, cardY + 27)
+      ctx.fillStyle = 'rgba(244,217,187,0.72)'
+      ctx.font = '9px sans-serif'
+      ctx.fillText('Cliente disfrutando el plato', slot.x, cardY + 42)
+
+      ctx.fillStyle = 'rgba(255,255,255,0.08)'
+      ctx.beginPath()
+      ctx.roundRect(patienceX, patienceY, patienceWidth, 6, 6)
+      ctx.fill()
+      ctx.fillStyle = 'rgba(244,187,101,0.85)'
+      ctx.beginPath()
+      ctx.roundRect(patienceX, patienceY, patienceWidth * eatingProgress, 6, 6)
+      ctx.fill()
+
+      drawCustomer(ctx, customerX, customerY, index, 'happy', tableState.pulse, customerPortraits)
+      drawCompactRecipeCard(ctx, bowlX, cardY + 80, tableState.recipe, recipeSprites[tableState.recipeId])
+
+      ctx.fillStyle = 'rgba(244,217,187,0.78)'
+      ctx.font = '600 9px sans-serif'
+      ctx.fillText('Comiendo...', slot.x, badgeY + 10)
       state.buttonMap.push({ key: String(index), x: slot.x, y: slot.y, radius: 70, type: 'table' })
+      return
+    }
+
+    if (!customer && tableState?.kind === 'dirty') {
+      const tipPreview = getTipPreview(tableState.elapsedMs)
+
+      ctx.textAlign = 'center'
+      ctx.fillStyle = '#fff5e8'
+      ctx.font = '700 11px sans-serif'
+      ctx.fillText('Mesa por limpiar', slot.x, cardY + 28)
+      ctx.fillStyle = tipPreview > 0 ? 'rgba(244,217,187,0.78)' : 'rgba(222,105,71,0.9)'
+      ctx.font = '9px sans-serif'
+      ctx.fillText(
+        tipPreview > 0 ? `Propina lista · +${tipPreview} pts` : 'La propina ya se enfría',
+        slot.x,
+        cardY + 42
+      )
+
+      drawPixelIcon(ctx, cleanupSprites.dirtyPlate, cardX + 54, cardY + 84, 46, 46)
+      drawPixelIcon(ctx, cleanupSprites.tipCoins, cardX + 122, cardY + 86, 40, 40)
+
+      ctx.fillStyle = 'rgba(255,255,255,0.08)'
+      ctx.beginPath()
+      ctx.roundRect(cardX + 18, cardY + 94, TABLE_W - 36, 22, 12)
+      ctx.fill()
+      ctx.strokeStyle = tipPreview > 0 ? 'rgba(201,149,42,0.42)' : 'rgba(222,105,71,0.42)'
+      ctx.beginPath()
+      ctx.roundRect(cardX + 18, cardY + 94, TABLE_W - 36, 22, 12)
+      ctx.stroke()
+
+      ctx.fillStyle = '#f4d9bb'
+      ctx.font = '700 9px sans-serif'
+      ctx.fillText('TOCA LA MESA PARA LEVANTARLA', slot.x, cardY + 108)
+
+      state.buttonMap.push({ key: String(index), x: slot.x, y: slot.y, radius: 70, type: 'cleanup' })
       return
     }
 
