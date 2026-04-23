@@ -1850,6 +1850,10 @@ function drawTables(
       return
     }
 
+    if (!customer) {
+      return
+    }
+
     const recipePreview = getRecipePreview(customer.recipeId)
     ctx.textAlign = 'center'
     ctx.fillStyle = '#fff5e8'
