@@ -49,7 +49,6 @@ const TIP_FULL_WINDOW_MS = 2500
 const TIP_LATE_WINDOW_MS = 4500
 const TIP_FULL_POINTS = 25
 const TIP_LATE_POINTS = 10
-const DIRTY_TABLE_PATIENCE = 0.58
 
 type Phase = 'idle' | 'playing' | 'game-over'
 type FloaterTone = 'good' | 'bad' | 'warn'
@@ -725,36 +724,24 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
       state.tableStates.filter((tableState) => tableState?.kind === 'eating').length
     if (activeCount >= maxCustomers) return
 
-    const cleanSlot = state.customers.findIndex(
+    const openSlot = state.customers.findIndex(
       (customer, index) => customer === null && state.tableStates[index] === null
     )
-    const dirtySlot = state.customers.findIndex(
-      (customer, index) => customer === null && state.tableStates[index]?.kind === 'dirty'
-    )
-    const openSlot = cleanSlot !== -1 ? cleanSlot : dirtySlot
     if (openSlot === -1) return
 
-    const wasDirtyTable = state.tableStates[openSlot]?.kind === 'dirty'
     const recipe = chooseRecipe(difficulty.recipeComplexityWeight)
-    state.tableStates[openSlot] = null
     state.customers[openSlot] = {
       slot: openSlot,
       recipeId: recipe.id,
       recipe,
-      patience: wasDirtyTable ? DIRTY_TABLE_PATIENCE : 1,
+      patience: 1,
       enteredAt: state.elapsedMs,
       pulse: 0,
-      mood: wasDirtyTable ? 'impatient' : 'neutral',
+      mood: 'neutral',
     }
 
-    if (wasDirtyTable) {
-      spawnFloater(TABLE_SLOTS[openSlot].x, TABLE_SLOTS[openSlot].y - 100, 'Llega molesto', 'bad')
-      spawnFloater(TABLE_SLOTS[openSlot].x, TABLE_SLOTS[openSlot].y - 82, recipe.name, 'warn')
-      playSound('grumble')
-    } else {
-      spawnFloater(TABLE_SLOTS[openSlot].x, TABLE_SLOTS[openSlot].y - 92, recipe.name, 'warn')
-    }
-  }, [playSound, spawnFloater])
+    spawnFloater(TABLE_SLOTS[openSlot].x, TABLE_SLOTS[openSlot].y - 92, recipe.name, 'warn')
+  }, [spawnFloater])
 
   const handleCanvasTap = useCallback((tapX: number, tapY: number) => {
     const state = stateRef.current
