@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { BRANCH_TOKENS } from '@/lib/staff-tokens'
+import { validateBranchToken } from '@/lib/staff-tokens'
 import { StaffScannerPage } from '@/components/scanner/StaffScannerPage'
 
 interface Props {
@@ -16,8 +16,7 @@ export default async function ScannerPage({ params, searchParams }: Props) {
   const { branch } = await params
   const { t: token } = await searchParams
 
-  const expectedToken = BRANCH_TOKENS[branch]
-  if (!expectedToken || token !== expectedToken) {
+  if (!token || !(await validateBranchToken(branch, token))) {
     notFound()
   }
 

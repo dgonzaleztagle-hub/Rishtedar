@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
-import { validateBranchToken, BRANCH_TOKENS } from '@/lib/staff-tokens'
+import { validateBranchToken } from '@/lib/staff-tokens'
 import type { Reservation } from '@/types'
 
 export async function GET(
@@ -17,13 +17,8 @@ export async function GET(
     const token = searchParams.get('token')
 
     // Validar token de sucursal
-    if (!token || !validateBranchToken(branch, token)) {
+    if (!token || !(await validateBranchToken(branch, token))) {
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
-    }
-
-    // Validar que la sucursal exista en BRANCH_TOKENS
-    if (!BRANCH_TOKENS[branch]) {
-      return NextResponse.json({ error: 'Sucursal no válida' }, { status: 400 })
     }
 
     const supabase = await createAdminClient()

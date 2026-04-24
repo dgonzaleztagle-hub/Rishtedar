@@ -20,7 +20,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Token y sucursal requeridos' }, { status: 401 })
     }
 
-    if (!validateBranchToken(branch, token)) {
+    if (!(await validateBranchToken(branch, token))) {
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
     }
 

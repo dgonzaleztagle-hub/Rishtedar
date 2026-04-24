@@ -7,7 +7,6 @@ import {
   Users, CheckCircle2, XCircle, MapPin, ChevronRight,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { validateBranchToken, BRANCH_TOKENS } from '@/lib/staff-tokens'
 import type { Reservation, ReservationStatus } from '@/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -144,12 +143,6 @@ export default function ReservationStaffPage({
       setError(null)
 
       try {
-        // Validar token localmente primero
-        if (!validateBranchToken(branchParam, tokenParam)) {
-          setError('Token inválido para esta sucursal')
-          return
-        }
-
         const res = await fetch(
           `/api/reservations/branch/${branchParam}/${todayParam}?token=${encodeURIComponent(tokenParam)}`
         )

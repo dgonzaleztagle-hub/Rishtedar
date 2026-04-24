@@ -1,20 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateBranchToken } from '@/lib/staff-tokens'
+import { requireStaffSession } from '@/lib/auth/session'
 import { awardPoints } from '@/lib/services/loyaltyService'
 
 // POST /api/staff/award
-// Body: { phone, name, businessId, points, reason, token }
+// Body: { phone, name, businessId, points, reason, token? }
+// Acepta sesión staff (dashboard) o token de sucursal (scanner físico)
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const { phone, name, businessId, points, reason = 'manual', token } = body
 
-    if (!phone || !businessId || !points || !token) {
+    if (!phone || !businessId || !points) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
     }
 
-    if (!validateBranchToken(businessId, token)) {
-      return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+    if (token) {
+      if (!(await validateBranchToken(businessId, token))) {
+        return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+      }
+    } else {
+      const auth = await requireStaffSession()
+      if (!auth.ok) return auth.response
     }
 
     if (typeof points !== 'number' || points <= 0 || points > 10000) {

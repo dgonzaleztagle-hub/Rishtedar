@@ -14,7 +14,6 @@ import {
   type DashboardReservation,
   type UpcomingReservation,
 } from '@/lib/services/reservationService'
-import { BRANCH_TOKENS } from '@/lib/staff-tokens'
 import type { BranchOption } from './BranchLogin'
 import { createClient } from '@/lib/supabase/client'
 
@@ -127,8 +126,10 @@ export function ReservationsView() {
   }
 
   // ── Copiar link de piso por sucursal ───────────────────────────────────────
-  function copyStaffLink(branchId: string) {
-    const token = BRANCH_TOKENS[branchId]
+  async function copyStaffLink(branchId: string) {
+    const res = await fetch(`/api/admin/scanner-token?branch=${branchId}`)
+    if (!res.ok) return
+    const { token } = await res.json() as { token?: string }
     if (!token) return
     const url = `${window.location.origin}/reservas/${branchId}/${token}`
     navigator.clipboard.writeText(url).then(() => {
@@ -148,8 +149,8 @@ export function ReservationsView() {
   // Admin global → ve todas. Sucursal específica → solo la suya.
   const isGlobalAdmin = currentBranch?.id === 'admin'
   const branchesWithToken = isGlobalAdmin
-    ? LOCALS.filter(l => BRANCH_TOKENS[l.id])
-    : LOCALS.filter(l => BRANCH_TOKENS[l.id] && l.id === currentBranch?.id)
+    ? LOCALS
+    : LOCALS.filter(l => l.id === currentBranch?.id)
 
   return (
     <div className="space-y-5">

@@ -23,8 +23,8 @@ export interface CustomerData {
 }
 
 interface Props {
-  businessId: string   // sucursal que está operando el escáner
-  token: string        // 'dashboard' desde el panel, o el token de sucursal
+  businessId: string
+  token?: string       // token de sucursal (scanner físico); omitir desde dashboard (usa sesión)
   defaultPoints?: number
   onAward?: (customer: CustomerData, points: number) => void
 }
@@ -40,7 +40,7 @@ function parseQR(raw: string): ParsedCircleQR | null {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function QRScannerCore({ businessId, token, defaultPoints = 100, onAward }: Props) {
+export function QRScannerCore({ businessId, token = '', defaultPoints = 100, onAward }: Props) {
   const scannerRef  = useRef<HTMLDivElement>(null)
   const instanceRef = useRef<{ stop: () => Promise<void> } | null>(null)
   const [scanning, setScanning]   = useState(false)
@@ -89,8 +89,9 @@ export function QRScannerCore({ businessId, token, defaultPoints = 100, onAward 
           setScanning(false)
           setStatus('loading')
 
+          const tokenParam = token ? `&token=${encodeURIComponent(token)}` : ''
           const res = await fetch(
-            `/api/staff/customer?phone=${encodeURIComponent(parsed.phone)}&business_id=${businessId}&token=${token}`
+            `/api/staff/customer?phone=${encodeURIComponent(parsed.phone)}&business_id=${businessId}${tokenParam}`
           )
           const data: CustomerData = await res.json()
           setCustomer(data)
@@ -124,7 +125,7 @@ export function QRScannerCore({ businessId, token, defaultPoints = 100, onAward 
         businessId,
         points,
         reason:     'manual',
-        token,
+        ...(token ? { token } : {}),
       }),
     })
 
