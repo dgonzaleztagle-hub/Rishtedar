@@ -24,24 +24,6 @@ const FONT_FAMILIES = [
 
 const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
-const DEMO_PROMOTIONS: Partial<Promotion>[] = [
-  {
-    id: 'p1', title: 'San Valentín — Noche romántica', description: null,
-    discount_type: 'percent', discount_value: 40,
-    applicable_to: 'delivery_only', business_id: null,
-    valid_from: '2026-02-14', valid_to: '2026-02-14',
-    day_of_week: null, start_hour: null, end_hour: null,
-    is_active: true, usage_count: 47, show_as_banner: false,
-  },
-  {
-    id: 'p2', title: 'Miércoles de delivery', description: null,
-    discount_type: 'percent', discount_value: 30,
-    applicable_to: 'delivery_only', business_id: null,
-    valid_from: '2026-01-01', valid_to: '2026-12-31',
-    day_of_week: 3, start_hour: null, end_hour: null,
-    is_active: true, usage_count: 128, show_as_banner: false,
-  },
-]
 
 type FormData = {
   title: string
@@ -119,9 +101,9 @@ export function PromotionsCMS() {
     try {
       const res  = await fetch('/api/promotions')
       const data = await res.json()
-      setPromotions(Array.isArray(data) && data.length ? data : DEMO_PROMOTIONS)
+      setPromotions(Array.isArray(data) ? data : [])
     } catch {
-      setPromotions(DEMO_PROMOTIONS)
+      setPromotions([])
     } finally {
       setLoading(false)
     }
@@ -200,17 +182,15 @@ export function PromotionsCMS() {
     }
 
     try {
-      const isEditing = editingId && !editingId.startsWith('p')
-
       const res = await fetch('/api/promotions', {
-        method:  isEditing ? 'PATCH' : 'POST',
+        method:  editingId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(isEditing ? { id: editingId, ...payload } : payload),
+        body:    JSON.stringify(editingId ? { id: editingId, ...payload } : payload),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
 
-      if (isEditing) {
+      if (editingId) {
         setPromotions(prev => prev.map(p => p.id === editingId ? json : p))
         toast.success('Promoción actualizada')
       } else {
@@ -218,13 +198,7 @@ export function PromotionsCMS() {
         toast.success('¡Promoción guardada!')
       }
     } catch {
-      // Sin BD: actualizar localmente
-      if (editingId) {
-        setPromotions(prev => prev.map(p => p.id === editingId ? { ...p, ...payload } : p))
-      } else {
-        setPromotions(prev => [{ id: `demo-${Date.now()}`, ...payload, is_active: true, usage_count: 0 }, ...prev])
-      }
-      toast.success(editingId ? 'Actualizado (local)' : 'Guardado (local)')
+      toast.error(editingId ? 'Error al actualizar promoción' : 'Error al guardar promoción')
     } finally {
       setSaving(false)
       handleCancelForm()
@@ -234,12 +208,15 @@ export function PromotionsCMS() {
   // ── Toggle activo ───────────────────────────────────────────────────────
   async function toggleActive(id: string, current: boolean) {
     setPromotions(prev => prev.map(p => p.id === id ? { ...p, is_active: !current } : p))
-    if (!id.startsWith('p')) {
+    try {
       await fetch('/api/promotions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, is_active: !current }),
       })
+    } catch {
+      setPromotions(prev => prev.map(p => p.id === id ? { ...p, is_active: current } : p))
+      toast.error('Error al actualizar')
     }
   }
 
@@ -247,10 +224,13 @@ export function PromotionsCMS() {
   async function deletePromo(id: string) {
     if (!confirm('¿Eliminar esta promoción?')) return
     setPromotions(prev => prev.filter(p => p.id !== id))
-    if (!id.startsWith('p')) {
+    try {
       await fetch(`/api/promotions?id=${id}`, { method: 'DELETE' })
+      toast.success('Promoción eliminada')
+    } catch {
+      fetchPromotions()
+      toast.error('Error al eliminar')
     }
-    toast.success('Promoción eliminada')
   }
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -613,6 +593,11 @@ export function PromotionsCMS() {
       <div className="space-y-3">
         {loading && (
           <div className="py-8 text-center text-warm-400 text-sm">Cargando promociones...</div>
+        )}
+        {!loading && promotions.length === 0 && (
+          <div className="py-12 text-center text-warm-400 text-sm border border-dashed border-warm-200">
+            No hay promociones creadas. Agrega la primera.
+          </div>
         )}
         {!loading && promotions.map(promo => (
           <div

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Clock, Save, Power, AlertCircle, CheckCircle2, MapPin } from 'lucide-react'
+import { Clock, Save, Power, AlertCircle, CheckCircle2, MapPin, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -115,13 +116,14 @@ function DayRow({
 // ─── SchedulePanel ────────────────────────────────────────────────────────────
 
 function SchedulePanel({
-  type, schedule, onChange, onSave, saved,
+  type, schedule, onChange, onSave, saved, saving,
 }: {
   type: ScheduleType
   schedule: WeekSchedule
   onChange: (key: DayKey, config: DayConfig) => void
   onSave: () => void
   saved: boolean
+  saving: boolean
 }) {
   const label = type === 'delivery' ? 'Delivery' : 'Reservas'
 
@@ -141,10 +143,11 @@ function SchedulePanel({
         </div>
         <button
           onClick={onSave}
-          className="flex items-center gap-1.5 bg-brand-700 hover:bg-brand-800 text-ivory text-xs px-3 py-1.5 tracking-wide uppercase font-medium transition-colors focus:outline-none"
+          disabled={saving}
+          className="flex items-center gap-1.5 bg-brand-700 hover:bg-brand-800 disabled:opacity-60 text-ivory text-xs px-3 py-1.5 tracking-wide uppercase font-medium transition-colors focus:outline-none"
         >
-          {saved ? <CheckCircle2 size={12} /> : <Save size={12} />}
-          {saved ? 'Guardado' : 'Guardar'}
+          {saving ? <Loader2 size={12} className="animate-spin" /> : saved ? <CheckCircle2 size={12} /> : <Save size={12} />}
+          {saving ? 'Guardando…' : saved ? 'Guardado' : 'Guardar'}
         </button>
       </div>
       <div>
@@ -179,16 +182,20 @@ function SchedulePanel({
 // ─── LocalScheduleEditor ──────────────────────────────────────────────────────
 
 function LocalScheduleEditor({
+  businessId,
   localName,
   scheduleData,
   onUpdate,
 }: {
+  businessId: string
   localName: string
   scheduleData: LocalSchedule
   onUpdate: (updated: Partial<LocalSchedule>) => void
 }) {
   const [savedDelivery, setSavedDelivery] = useState(false)
   const [savedReservations, setSavedReservations] = useState(false)
+  const [savingDelivery, setSavingDelivery] = useState(false)
+  const [savingReservations, setSavingReservations] = useState(false)
 
   function updateDelivery(key: DayKey, config: DayConfig) {
     onUpdate({ delivery: { ...scheduleData.delivery, [key]: config } })
@@ -198,17 +205,29 @@ function LocalScheduleEditor({
     onUpdate({ reservations: { ...scheduleData.reservations, [key]: config } })
   }
 
-  function saveDelivery() {
-    // TODO: POST /api/admin/hours { business_id, type: 'delivery', schedule }
-    setSavedDelivery(true)
-    setTimeout(() => setSavedDelivery(false), 3000)
+  async function saveSchedule(type: ScheduleType, schedule: WeekSchedule, is_open: boolean) {
+    const setLoading = type === 'delivery' ? setSavingDelivery : setSavingReservations
+    const setDone = type === 'delivery' ? setSavedDelivery : setSavedReservations
+
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/hours', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ business_id: businessId, type, schedule, is_open }),
+      })
+      if (!res.ok) throw new Error()
+      setDone(true)
+      setTimeout(() => setDone(false), 3000)
+    } catch {
+      toast.error(`Error al guardar horario de ${type === 'delivery' ? 'Delivery' : 'Reservas'}`)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  function saveReservations() {
-    // TODO: POST /api/admin/hours { business_id, type: 'reservations', schedule }
-    setSavedReservations(true)
-    setTimeout(() => setSavedReservations(false), 3000)
-  }
+  function saveDelivery() { saveSchedule('delivery', scheduleData.delivery, scheduleData.isOpen) }
+  function saveReservations() { saveSchedule('reservations', scheduleData.reservations, scheduleData.isOpen) }
 
   return (
     <div className="space-y-4">
@@ -252,6 +271,7 @@ function LocalScheduleEditor({
         onChange={updateDelivery}
         onSave={saveDelivery}
         saved={savedDelivery}
+        saving={savingDelivery}
       />
       <SchedulePanel
         type="reservations"
@@ -259,6 +279,7 @@ function LocalScheduleEditor({
         onChange={updateReservations}
         onSave={saveReservations}
         saved={savedReservations}
+        saving={savingReservations}
       />
     </div>
   )
@@ -274,19 +295,42 @@ export function HorariosView() {
   })
 
   const isAdmin = branch?.id === 'admin'
-
-  // Per-local schedule state (keyed by branch id)
+  const [activeLocal, setActiveLocal] = useState(LOCAL_BRANCHES[0].id)
   const [schedules, setSchedules] = useState<Record<string, LocalSchedule>>(() => {
     const map: Record<string, LocalSchedule> = {}
     LOCAL_BRANCHES.forEach(b => { map[b.id] = defaultLocalSchedule() })
     return map
   })
+  const [loading, setLoading] = useState(false)
 
-  // For manager view: single local schedule
-  const [managerSchedule, setManagerSchedule] = useState<LocalSchedule>(defaultLocalSchedule)
+  const currentBranchId = isAdmin ? activeLocal : (branch?.id ?? '')
 
-  // Admin: which local tab is active
-  const [activeLocal, setActiveLocal] = useState(LOCAL_BRANCHES[0].id)
+  const loadSchedule = useCallback(async (businessId: string) => {
+    if (!businessId) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/admin/hours?business_id=${businessId}`)
+      const data = await res.json()
+      if (data.delivery || data.reservations) {
+        setSchedules(prev => ({
+          ...prev,
+          [businessId]: {
+            delivery:     data.delivery?.schedule     ?? defaultLocalSchedule().delivery,
+            reservations: data.reservations?.schedule ?? defaultLocalSchedule().reservations,
+            isOpen:       data.delivery?.is_open ?? true,
+          },
+        }))
+      }
+    } catch {
+      // mantiene los defaults si falla
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadSchedule(currentBranchId)
+  }, [currentBranchId, loadSchedule])
 
   function updateLocalSchedule(localId: string, partial: Partial<LocalSchedule>) {
     setSchedules(prev => ({
@@ -304,12 +348,8 @@ export function HorariosView() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-warm-900 mb-1">Horarios del local</h1>
         <p className="text-warm-500 text-sm">
-          Configura horarios independientes para delivery y reservas.
+          Configura horarios independientes para delivery y reservas por cada local.
         </p>
-        <div className="flex items-start gap-2 mt-3 p-3 bg-amber-50 border border-amber-200 text-xs text-amber-700">
-          <AlertCircle size={13} className="shrink-0 mt-0.5" />
-          Vista de configuración — los cambios no se persisten todavía. La validación de horarios en pedidos y reservas se activa en la siguiente fase.
-        </div>
       </div>
 
       {/* Admin: local selector tabs */}
@@ -332,19 +372,17 @@ export function HorariosView() {
         </div>
       )}
 
-      {/* Schedule editor */}
-      {isAdmin ? (
-        <LocalScheduleEditor
-          key={activeLocal}
-          localName={localName}
-          scheduleData={schedules[activeLocal]}
-          onUpdate={partial => updateLocalSchedule(activeLocal, partial)}
-        />
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 size={20} className="animate-spin text-warm-400" />
+        </div>
       ) : (
         <LocalScheduleEditor
+          key={currentBranchId}
+          businessId={currentBranchId}
           localName={localName}
-          scheduleData={managerSchedule}
-          onUpdate={partial => setManagerSchedule(prev => ({ ...prev, ...partial }))}
+          scheduleData={schedules[currentBranchId] ?? defaultLocalSchedule()}
+          onUpdate={partial => updateLocalSchedule(currentBranchId, partial)}
         />
       )}
     </div>

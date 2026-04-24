@@ -18,23 +18,6 @@ const FONT_FAMILIES = [
   { label: 'System', value: 'system-ui' },
 ]
 
-const DEMO_BANNERS: Partial<PromotionalBanner>[] = [
-  {
-    id: 'demo-1',
-    title: 'Promoción: 30% OFF',
-    description: 'Descuento especial en pedidos delivery',
-    image_url: null,
-    font_family: 'Poppins',
-    font_size: 28,
-    text_color: '#ffffff',
-    background_color: '#d4711a',
-    padding: 24,
-    border_radius: 12,
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-]
 
 type FormData = {
   title: string
@@ -76,9 +59,9 @@ export function BannersCMS() {
     try {
       const res = await fetch('/api/banners')
       const data = await res.json()
-      setBanners(Array.isArray(data) && data.length ? data : DEMO_BANNERS)
+      setBanners(Array.isArray(data) ? data : [])
     } catch {
-      setBanners(DEMO_BANNERS)
+      setBanners([])
     } finally {
       setLoading(false)
     }
@@ -417,6 +400,11 @@ export function BannersCMS() {
       <div className="space-y-3">
         {loading && (
           <div className="py-8 text-center text-warm-400 text-sm">Cargando banners...</div>
+        )}
+        {!loading && banners.length === 0 && (
+          <div className="py-12 text-center text-warm-400 text-sm border border-dashed border-warm-200">
+            No hay banners creados. Agrega el primero.
+          </div>
         )}
         {!loading && banners.map(banner => (
           <div key={banner.id} className={`bg-white border ${banner.is_active ? 'border-warm-200' : 'border-warm-100 opacity-60'} p-5`}>

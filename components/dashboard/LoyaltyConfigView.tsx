@@ -25,96 +25,18 @@ interface TierBenefit {
   text: string
 }
 
-// ─── Defaults ─────────────────────────────────────────────────────────────────
-// Estos valores son los que el cliente ve en CircleContent + /app
-// El dashboard los muestra y permite editarlos (en una siguiente iteración
-// se guardan en Supabase tabla loyalty_config; por ahora es visual + educativo)
-
-const DEFAULT_EARN_RULES: EarnRule[] = [
-  {
-    id: 'delivery',
-    label: 'Pedido Delivery / Takeaway',
-    description: 'Puntos otorgados al confirmar un pedido online',
-    points: 1,
-    unit: 'por $1.000 CLP',
-    enabled: true,
-  },
-  {
-    id: 'visit',
-    label: 'Visita registrada en local',
-    description: 'Staff escanea QR del cliente al llegar o al pagar',
-    points: 100,
-    unit: 'por visita',
-    enabled: true,
-  },
-  {
-    id: 'reservation',
-    label: 'Reserva confirmada',
-    description: 'Se acreditan al momento de confirmar la reserva',
-    points: 100,
-    unit: 'fija',
-    enabled: true,
-  },
-  {
-    id: 'birthday',
-    label: 'Cumpleaños (Gold)',
-    description: 'Puntos dobles en el mes de cumpleaños — solo nivel Gold',
-    points: 2,
-    unit: 'multiplicador',
-    enabled: true,
-  },
-  {
-    id: 'tuesday',
-    label: 'Martes dobles (Silver)',
-    description: 'Puntos dobles los martes — nivel Silver y Gold',
-    points: 2,
-    unit: 'multiplicador',
-    enabled: false,
-  },
-]
-
-const DEFAULT_PRIZES: RankingPrize[] = [
-  { rank: 1, label: '1er lugar', description: '20% de descuento en próxima visita' },
-  { rank: 2, label: '2do lugar', description: '1 postre gratis' },
-  { rank: 3, label: '3er lugar', description: '10% de descuento en próxima visita' },
-]
-
 const TIER_THRESHOLDS = [
   { tier: 'Bronze', icon: Star,  color: '#cd7f32', range: '0 – 999 pts',   from: 0,    to: 999 },
   { tier: 'Silver', icon: Zap,   color: '#c0c0c0', range: '1.000 – 4.999', from: 1000, to: 4999 },
   { tier: 'Gold',   icon: Crown, color: '#c9952a', range: '5.000+',         from: 5000, to: null },
 ]
 
-const DEFAULT_TIER_BENEFITS: Record<'bronze' | 'silver' | 'gold', TierBenefit[]> = {
-  bronze: [
-    { icon: '✦', text: '1 punto por cada $1.000 gastado' },
-    { icon: '🎮', text: '1 ficha del Festín por semana' },
-    { icon: '🎂', text: 'Descuento 5% en tu cumpleaños' },
-    { icon: '🎁', text: 'Acceso a promociones exclusivas Circle' },
-  ],
-  silver: [
-    { icon: '✦', text: '1 punto por cada $1.000 gastado' },
-    { icon: '🎮', text: '2 fichas del Festín por semana' },
-    { icon: '🎂', text: 'Descuento 10% en tu cumpleaños' },
-    { icon: '📅', text: 'Reservas con prioridad (hasta 48h antes)' },
-    { icon: '🏷️', text: '5% de descuento en pedidos delivery' },
-  ],
-  gold: [
-    { icon: '✦', text: '1 punto por cada $1.000 gastado' },
-    { icon: '🎮', text: '3 fichas del Festín por semana' },
-    { icon: '🎂', text: 'Descuento 15% + postre gratis en cumpleaños' },
-    { icon: '👑', text: 'Mesa preferente sin espera' },
-    { icon: '🌟', text: 'Acceso a menús avant-première exclusivos' },
-    { icon: '🎉', text: 'Invitaciones a cenas y eventos especiales' },
-  ],
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function LoyaltyConfigView() {
-  const [rules, setRules]               = useState<EarnRule[]>(DEFAULT_EARN_RULES)
-  const [prizes, setPrizes]             = useState<RankingPrize[]>(DEFAULT_PRIZES)
-  const [tierBenefits, setTierBenefits] = useState(DEFAULT_TIER_BENEFITS)
+  const [rules, setRules]               = useState<EarnRule[]>([])
+  const [prizes, setPrizes]             = useState<RankingPrize[]>([])
+  const [tierBenefits, setTierBenefits] = useState<Record<'bronze' | 'silver' | 'gold', TierBenefit[]>>({ bronze: [], silver: [], gold: [] })
   const [loading, setLoading]           = useState(true)
   const [saving, setSaving]             = useState(false)
   const [saved, setSaved]               = useState(false)
@@ -125,9 +47,9 @@ export function LoyaltyConfigView() {
     fetch('/api/admin/loyalty-config')
       .then(r => r.json())
       .then(data => {
-        if (Array.isArray(data.earn_rules)    && data.earn_rules.length    > 0) setRules(data.earn_rules)
-        if (Array.isArray(data.prizes)        && data.prizes.length        > 0) setPrizes(data.prizes)
-        if (data.tier_benefits && Object.keys(data.tier_benefits).length   > 0) setTierBenefits(data.tier_benefits)
+        if (data.earn_rules)    setRules(data.earn_rules)
+        if (data.prizes)        setPrizes(data.prizes)
+        if (data.tier_benefits) setTierBenefits(data.tier_benefits)
       })
       .catch(console.error)
       .finally(() => setLoading(false))

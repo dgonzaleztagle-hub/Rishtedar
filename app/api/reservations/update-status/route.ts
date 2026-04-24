@@ -16,11 +16,12 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
     }
 
-    // Si se proporciona token, validarlo contra la sucursal
-    if (token && branch) {
-      if (!validateBranchToken(branch, token)) {
-        return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
-      }
+    if (!token || !branch) {
+      return NextResponse.json({ error: 'Token y sucursal requeridos' }, { status: 401 })
+    }
+
+    if (!validateBranchToken(branch, token)) {
+      return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
     }
 
     const supabase = await createAdminClient()

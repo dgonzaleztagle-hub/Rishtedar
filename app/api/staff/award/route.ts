@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
     }
 
-    if (token !== 'dashboard' && !validateBranchToken(businessId, token)) {
+    if (!validateBranchToken(businessId, token)) {
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
     }
 

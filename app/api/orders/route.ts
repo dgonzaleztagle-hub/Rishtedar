@@ -112,6 +112,9 @@ async function fetchItemsByOrder(
 // business_id=admin skips the branch filter
 
 export async function GET(req: NextRequest) {
+  const auth = await requireStaffSession()
+  if (!auth.ok) return auth.response
+
   const { searchParams } = new URL(req.url)
   const business_id = searchParams.get('business_id')
   const view        = searchParams.get('view') ?? 'all'
@@ -120,7 +123,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Falta business_id' }, { status: 400 })
   }
 
-  const isAdmin = business_id === 'admin'
+  const isAdmin = business_id === 'admin' && auth.profile.role === 'super_admin'
 
   try {
     const supabase = await createAdminClient()
@@ -149,7 +152,7 @@ export async function GET(req: NextRequest) {
       const itemsByOrder = await fetchItemsByOrder(supabase, orderIds)
 
       // tracking
-      let trackingMap: Record<string, TrackingRow> = {}
+      const trackingMap: Record<string, TrackingRow> = {}
       const { data: trackingFull, error: trackingFullError } = await supabase
         .from('delivery_tracking')
         .select('order_id, status, driver_id, driver_name, driver_phone, driver_token')

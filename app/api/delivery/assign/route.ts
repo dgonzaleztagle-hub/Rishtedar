@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { requireStaffSession } from '@/lib/auth/session'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://rishtedar.cl'
 
@@ -7,6 +8,9 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://rishtedar.cl'
 // Asigna un driver a un pedido, genera token único, retorna URL de WhatsApp
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireStaffSession()
+    if (!auth.ok) return auth.response
+
     const body = await req.json()
     const { order_id, driver_id, business_id } = body
 
