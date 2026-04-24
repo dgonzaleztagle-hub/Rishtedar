@@ -5,7 +5,7 @@
 -- Cambios respecto a schema v1:
 --   + tabla businesses (reemplaza lib/locations.ts hardcodeado)
 --   + tabla business_hours (horarios delivery/reservas por sucursal, reemplaza hours_json)
---   + tabla game_scores (ranking semanal del juego)
+--   + tablas game_score_credits/game_score_submissions/game_weekly_winners (ranking semanal)
 --   + tabla game_weekly_prizes (premios configurables por admin)
 --   + tabla loyalty_points (Circle: puntos y tier por cliente)
 --   + tabla discount_codes (premios generados por ranking/Circle)
@@ -314,8 +314,9 @@ CREATE TABLE IF NOT EXISTS loyalty_config (
 );
 
 -- ─── GAME SCORES ─────────────────────────────────────────────────────────────
--- Ranking semanal del juego (Pac-Man adaptado)
+-- Ranking semanal del juego
 -- Semana = lunes 00:00 a domingo 23:59 (week_start = fecha del lunes)
+-- game_scores se mantiene como tabla legacy/compatibilidad; el ranking real usa submissions.
 
 CREATE TABLE IF NOT EXISTS game_scores (
   id             UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -327,6 +328,50 @@ CREATE TABLE IF NOT EXISTS game_scores (
   is_ranked      BOOLEAN DEFAULT false,    -- true = el cliente eligió que contara
   game_tokens_used INTEGER DEFAULT 1,     -- fichas usadas (3 max/semana)
   created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS game_score_credits (
+  id              UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  customer_phone  TEXT NOT NULL,
+  customer_name   TEXT,
+  business_id     TEXT NOT NULL,
+  week_start      DATE NOT NULL,
+  source_order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+  credits_granted INTEGER NOT NULL DEFAULT 3,
+  credits_used    INTEGER NOT NULL DEFAULT 0,
+  expires_at      TIMESTAMPTZ NOT NULL,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW(),
+  CHECK (credits_granted > 0),
+  CHECK (credits_used >= 0),
+  CHECK (credits_used <= credits_granted)
+);
+
+CREATE TABLE IF NOT EXISTS game_score_submissions (
+  id             UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  customer_phone TEXT NOT NULL,
+  customer_name  TEXT,
+  display_name   TEXT NOT NULL,
+  business_id    TEXT NOT NULL,
+  week_start     DATE NOT NULL,
+  score          INTEGER NOT NULL,
+  credit_id      UUID REFERENCES game_score_credits(id) ON DELETE SET NULL,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  CHECK (score >= 0)
+);
+
+CREATE TABLE IF NOT EXISTS game_weekly_winners (
+  id             UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  business_id    TEXT NOT NULL,
+  week_start     DATE NOT NULL,
+  rank           INTEGER NOT NULL CHECK (rank BETWEEN 1 AND 3),
+  customer_phone TEXT NOT NULL,
+  display_name   TEXT NOT NULL,
+  score          INTEGER NOT NULL,
+  submission_id  UUID REFERENCES game_score_submissions(id) ON DELETE SET NULL,
+  closed_at      TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (business_id, week_start, rank),
+  UNIQUE (business_id, week_start, customer_phone)
 );
 
 -- ─── GAME WEEKLY PRIZES ───────────────────────────────────────────────────────
@@ -383,6 +428,9 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE loyalty_points ENABLE ROW LEVEL SECURITY;
 ALTER TABLE loyalty_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE game_scores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE game_score_credits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE game_score_submissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE game_weekly_winners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE game_weekly_prizes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE discount_codes ENABLE ROW LEVEL SECURITY;
 
@@ -400,11 +448,12 @@ CREATE POLICY "reservations_insert_anon"    ON reservations    FOR INSERT WITH C
 CREATE POLICY "subscribers_insert_anon"     ON subscribers     FOR INSERT WITH CHECK (true);
 CREATE POLICY "loyalty_insert_anon"         ON loyalty_points  FOR INSERT WITH CHECK (true);
 CREATE POLICY "loyalty_tx_insert_anon"      ON loyalty_transactions FOR INSERT WITH CHECK (true);
-CREATE POLICY "game_scores_insert_anon"     ON game_scores     FOR INSERT WITH CHECK (true);
 
 -- Lectura por teléfono (PWA cliente, sin auth)
 CREATE POLICY "loyalty_read_by_phone"       ON loyalty_points  FOR SELECT USING (true);
 CREATE POLICY "game_scores_public_read"     ON game_scores     FOR SELECT USING (true);
+CREATE POLICY "game_submissions_public_read" ON game_score_submissions FOR SELECT USING (true);
+CREATE POLICY "game_winners_public_read"    ON game_weekly_winners FOR SELECT USING (true);
 CREATE POLICY "game_prizes_public_read"     ON game_weekly_prizes FOR SELECT USING (true);
 CREATE POLICY "discount_codes_read_by_phone" ON discount_codes FOR SELECT USING (true);
 
@@ -420,6 +469,10 @@ CREATE INDEX IF NOT EXISTS idx_reservations_date ON reservations(reservation_dat
 CREATE INDEX IF NOT EXISTS idx_promotions_active ON promotions(is_active, valid_from, valid_to);
 CREATE INDEX IF NOT EXISTS idx_menu_items_business ON menu_items(business_id, is_active);
 CREATE INDEX IF NOT EXISTS idx_game_scores_week ON game_scores(business_id, week_start, is_ranked);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_game_score_credits_source_order ON game_score_credits(source_order_id) WHERE source_order_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_game_score_credits_lookup ON game_score_credits(customer_phone, business_id, week_start, expires_at);
+CREATE INDEX IF NOT EXISTS idx_game_score_submissions_week ON game_score_submissions(business_id, week_start, score DESC);
+CREATE INDEX IF NOT EXISTS idx_game_weekly_winners_lookup ON game_weekly_winners(business_id, week_start, rank);
 CREATE INDEX IF NOT EXISTS idx_loyalty_phone ON loyalty_points(customer_phone, business_id);
 CREATE INDEX IF NOT EXISTS idx_discount_codes_phone ON discount_codes(customer_phone, is_used);
 
@@ -445,6 +498,9 @@ CREATE TRIGGER trg_businesses_updated_at
 CREATE TRIGGER trg_loyalty_updated_at
   BEFORE UPDATE ON loyalty_points FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+CREATE TRIGGER trg_game_score_credits_updated_at
+  BEFORE UPDATE ON game_score_credits FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 -- ─── REALTIME ─────────────────────────────────────────────────────────────────
 -- Habilitar en Supabase Dashboard > Database > Replication:
 -- ALTER PUBLICATION supabase_realtime ADD TABLE orders;
@@ -452,16 +508,12 @@ CREATE TRIGGER trg_loyalty_updated_at
 -- ALTER PUBLICATION supabase_realtime ADD TABLE game_scores;
 
 -- ─── LÓGICA DE FICHAS DEL JUEGO ───────────────────────────────────────────────
--- (No en DB — calculado en el cliente y validado en API)
--- Regla: 3 fichas rankeadas por semana (week_start)
--- Para contar fichas disponibles:
---   SELECT COUNT(*) FROM game_scores
---   WHERE customer_phone = $1
---     AND business_id = $2
---     AND week_start = $3
---     AND is_ranked = true
---   → si COUNT < 3, puede rankear
--- Práctica: ilimitada (is_ranked = false, no consume ficha)
+-- Regla: cada pedido valido debe llamar grant_game_score_credits(..., 3).
+-- Las fichas expiran al cierre de la semana (week_start + 7 dias).
+-- Publicar un score llama submit_game_score(...), consume 1 ficha y registra
+-- game_score_submissions. Practicar es ilimitado y no toca la DB.
+-- El ranking semanal toma el mejor score publicado por customer_phone.
+-- game_weekly_winners conserva historico permanente del top 3 por semana.
 
 -- ─── LÓGICA DE TIER CIRCLE ────────────────────────────────────────────────────
 -- bronze: 0 – 999 puntos históricos

@@ -30,7 +30,7 @@ export async function GET(
     // 2. Obtener la orden
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, order_number, customer_name, customer_phone, delivery_address, delivery_latitude, delivery_longitude, final_price, notes')
+      .select('id, order_number, customer_name, customer_phone, delivery_address, delivery_latitude, delivery_longitude, final_price')
       .eq('id', tracking.order_id)
       .single()
 

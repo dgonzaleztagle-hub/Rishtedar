@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateBranchToken } from '@/lib/staff-tokens'
-import { requireStaffSession } from '@/lib/auth/session'
+import { requireStaffSession, requireBranchAccess } from '@/lib/auth/session'
 import { getCustomerLoyalty } from '@/lib/services/loyaltyService'
 
 // GET /api/staff/customer?phone=X&business_id=Y&token=Z
@@ -23,6 +23,9 @@ export async function GET(req: NextRequest) {
   } else {
     const auth = await requireStaffSession()
     if (!auth.ok) return auth.response
+    if (!requireBranchAccess(auth.profile, businessId)) {
+      return NextResponse.json({ error: 'Sin acceso a esta sucursal' }, { status: 403 })
+    }
   }
 
   const loyalty = await getCustomerLoyalty(phone, businessId)

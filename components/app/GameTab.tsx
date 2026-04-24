@@ -21,10 +21,11 @@ interface GameTabProps {
   identity:    ClientIdentity
   tokensLeft:  number
   leaderboard: LeaderboardEntry[]
+  publishError?: string | null
   onGameEnd:   (score: number, counted: boolean) => void
 }
 
-export function GameTab({ identity, tokensLeft, leaderboard, onGameEnd }: GameTabProps) {
+export function GameTab({ identity, tokensLeft, leaderboard, publishError, onGameEnd }: GameTabProps) {
   return (
     <>
       <div className="mx-auto max-w-6xl px-4 pt-2 pb-6">
@@ -34,18 +35,23 @@ export function GameTab({ identity, tokensLeft, leaderboard, onGameEnd }: GameTa
             <p className="font-display text-3xl italic text-ivory">El Festín de Especias</p>
           </div>
           <div className="text-left lg:text-right">
-            <p className="text-warm-500 text-[10px] uppercase tracking-wider mb-0.5">Intentos rankeados</p>
-            <p className="text-ivory text-sm font-medium">{tokensLeft} / 3</p>
+            <p className="text-warm-500 text-[10px] uppercase tracking-wider mb-0.5">Fichas para publicar</p>
+            <p className="text-ivory text-sm font-medium">{tokensLeft}</p>
           </div>
         </div>
         <div className="mb-5 grid gap-3 text-sm text-warm-400 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <p className="max-w-3xl leading-relaxed">
-            Una run continua de cocina india: arma platos reales con ingredientes táctiles, sirve la mesa correcta y sobrevive al aumento progresivo de dificultad para entrar al ranking semanal.
+            Juega todo lo que quieras. Cada pedido válido entrega 3 fichas semanales para publicar tus mejores scores en el ranking con premio.
           </p>
           <div className="rounded-full border border-warm-800 bg-warm-950/40 px-4 py-2 text-xs uppercase tracking-[0.22em] text-gold-500">
             {identity.favoriteLocal.replace('-', ' ')} · Top 3 con premio
           </div>
         </div>
+        {publishError && (
+          <div className="mb-4 border border-gold-500/30 bg-gold-500/10 px-4 py-3 text-sm text-gold-200">
+            {publishError}
+          </div>
+        )}
         <RishtedarGame
           onGameEnd={onGameEnd}
           tokensLeft={tokensLeft}

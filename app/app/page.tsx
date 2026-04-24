@@ -36,20 +36,6 @@ interface LeaderboardEntry {
 
 type Tab = 'circle' | 'game'
 
-// ─── Game token helpers (localStorage UI only — server enforces the real limit) ───
-
-function getTokensLeft(phone: string, businessId: string): number {
-  const key  = `game_tokens_${businessId}_${phone}_${getWeekStart()}`
-  const used = parseInt(localStorage.getItem(key) || '0', 10)
-  return Math.max(0, 3 - used)
-}
-
-function consumeToken(phone: string, businessId: string) {
-  const key  = `game_tokens_${businessId}_${phone}_${getWeekStart()}`
-  const used = parseInt(localStorage.getItem(key) || '0', 10)
-  localStorage.setItem(key, String(used + 1))
-}
-
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function AppPage() {
@@ -60,8 +46,9 @@ export default function AppPage() {
   const [tab,            setTab]            = useState<Tab>('circle')
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [form,           setForm]           = useState({ name: '', phone: '', favoriteLocal: '' })
-  const [tokensLeft,     setTokensLeft]     = useState(3)
+  const [tokensLeft,     setTokensLeft]     = useState(0)
   const [formError,      setFormError]      = useState<string | null>(null)
+  const [publishError,   setPublishError]   = useState<string | null>(null)
   const [savingIdentity, setSavingIdentity] = useState(false)
 
   // ── Fetch loyalty ────────────────────────────────────────────────────────────
@@ -94,20 +81,45 @@ export default function AppPage() {
   // ── Fetch leaderboard ────────────────────────────────────────────────────────
   const fetchLeaderboard = useCallback(async (businessId: string, phone: string) => {
     try {
-      const res  = await fetch(`/api/game/score?business_id=${businessId}&week_start=${getWeekStart()}`)
+      const params = new URLSearchParams({
+        business_id: businessId,
+        week_start:  getWeekStart(),
+        customer_phone: phone,
+      })
+      const res  = await fetch(`/api/game/score?${params.toString()}`)
       if (!res.ok) return
       const json = await res.json()
       setLeaderboard(
         (json.leaderboard ?? []).map(
-          (row: { rank: number; name: string; score: number; phone_hint: string }) => ({
+          (row: { rank: number; name: string; score: number; is_current_user: boolean }) => ({
             rank:          row.rank,
             name:          row.name,
             score:         row.score,
-            isCurrentUser: phone.slice(-4) === row.phone_hint,
+            isCurrentUser: row.is_current_user,
           })
         )
       )
     } catch { /* silent */ }
+  }, [])
+
+  // ── Fetch score credits ─────────────────────────────────────────────────────
+  const fetchCredits = useCallback(async (phone: string, businessId: string) => {
+    try {
+      const params = new URLSearchParams({
+        customer_phone: phone,
+        business_id: businessId,
+        week_start: getWeekStart(),
+      })
+      const res = await fetch(`/api/game/credits?${params.toString()}`)
+      if (!res.ok) {
+        setTokensLeft(0)
+        return
+      }
+      const json = await res.json()
+      setTokensLeft(Math.max(0, Number(json.credits_available ?? 0)))
+    } catch {
+      setTokensLeft(0)
+    }
   }, [])
 
   // ── Load identity on mount ───────────────────────────────────────────────────
@@ -118,11 +130,11 @@ export default function AppPage() {
       const parsed = JSON.parse(stored) as ClientIdentity
       const local  = parsed.favoriteLocal || 'providencia'
       setIdentity(parsed)
-      setTokensLeft(getTokensLeft(parsed.phone, local))
+      fetchCredits(parsed.phone, local)
       fetchLoyalty(parsed.phone, local)
       fetchLeaderboard(local, parsed.phone)
     } catch { /* noop */ }
-  }, [fetchLoyalty, fetchLeaderboard])
+  }, [fetchCredits, fetchLoyalty, fetchLeaderboard])
 
   // ── Save identity ────────────────────────────────────────────────────────────
   async function saveIdentity() {
@@ -159,7 +171,7 @@ export default function AppPage() {
         }
         localStorage.setItem('rishtedar_client', JSON.stringify(id))
         setIdentity(id)
-        setTokensLeft(getTokensLeft(normalizedPhone, favoriteLocal))
+        fetchCredits(normalizedPhone, favoriteLocal)
         setShowOnboarding(false)
         fetchLoyalty(normalizedPhone, favoriteLocal)
         fetchLeaderboard(favoriteLocal, normalizedPhone)
@@ -189,7 +201,7 @@ export default function AppPage() {
 
       localStorage.setItem('rishtedar_client', JSON.stringify(id))
       setIdentity(id)
-      setTokensLeft(getTokensLeft(normalizedPhone, favoriteLocal))
+      fetchCredits(normalizedPhone, favoriteLocal)
       setShowOnboarding(false)
       fetchLoyalty(normalizedPhone, favoriteLocal)
       fetchLeaderboard(favoriteLocal, normalizedPhone)
@@ -203,24 +215,43 @@ export default function AppPage() {
   }
 
   // ── Game end ─────────────────────────────────────────────────────────────────
-  function handleGameEnd(score: number, counted: boolean) {
+  async function handleGameEnd(score: number, counted: boolean) {
     if (!identity || !counted) return
-    consumeToken(identity.phone, identity.favoriteLocal)
-    setTokensLeft(prev => Math.max(0, prev - 1))
-    fetch('/api/game/score', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        customer_phone: identity.phone,
-        customer_name:  identity.name,
-        business_id:    identity.favoriteLocal,
-        score,
-        is_ranked:  true,
-        week_start: getWeekStart(),
-      }),
-    })
-      .then(() => fetchLeaderboard(identity.favoriteLocal, identity.phone))
-      .catch(() => {})
+    setPublishError(null)
+
+    try {
+      const res = await fetch('/api/game/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_phone: identity.phone,
+          customer_name:  identity.name,
+          business_id:    identity.favoriteLocal,
+          score,
+          week_start: getWeekStart(),
+        }),
+      })
+      const json = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        if (json.code === 'NO_GAME_CREDITS') {
+          setTokensLeft(0)
+          setPublishError('No tienes fichas disponibles esta semana. Puedes seguir practicando.')
+        } else {
+          setPublishError('No pudimos publicar tu score. Intenta nuevamente.')
+        }
+        return
+      }
+
+      if (json.credits_remaining !== undefined) {
+        setTokensLeft(Math.max(0, Number(json.credits_remaining)))
+      } else {
+        fetchCredits(identity.phone, identity.favoriteLocal)
+      }
+      fetchLeaderboard(identity.favoriteLocal, identity.phone)
+    } catch {
+      setPublishError('No pudimos publicar tu score. Intenta nuevamente.')
+    }
   }
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -319,6 +350,7 @@ export default function AppPage() {
               identity={identity!}
               tokensLeft={tokensLeft}
               leaderboard={leaderboard}
+              publishError={publishError}
               onGameEnd={handleGameEnd}
             />
           </motion.div>

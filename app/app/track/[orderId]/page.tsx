@@ -21,25 +21,16 @@ interface Order {
   business_id: string
 }
 
+interface ClientIdentity {
+  name: string
+  phone: string
+}
+
 // Map internal status → client status visible
 function toClientStatus(status: string): ClientStatus {
   if (status === 'completed') return 'delivered'
   if (status === 'ready') return 'on_the_way'
   return 'preparing'
-}
-
-function getTokensLeft(phone: string, businessId: string): number {
-  if (typeof window === 'undefined') return 3
-  const key = `game_tokens_${businessId}_${phone}_${getWeekStart()}`
-  const used = parseInt(localStorage.getItem(key) || '0', 10)
-  return Math.max(0, 3 - used)
-}
-
-function consumeToken(phone: string, businessId: string) {
-  if (typeof window === 'undefined') return
-  const key = `game_tokens_${businessId}_${phone}_${getWeekStart()}`
-  const used = parseInt(localStorage.getItem(key) || '0', 10)
-  localStorage.setItem(key, String(used + 1))
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -50,12 +41,35 @@ export default function TrackPage() {
   const [clientStatus, setClientStatus] = useState<ClientStatus>('preparing')
   const [loading, setLoading] = useState(true)
   const [showGame, setShowGame] = useState(false)
-  const [tokensLeft, setTokensLeft] = useState(3)
+  const [tokensLeft, setTokensLeft] = useState(0)
+  const [identity, setIdentity] = useState<ClientIdentity | null>(null)
 
-  // Load identity from localStorage
-  const phone = typeof window !== 'undefined'
-    ? (JSON.parse(localStorage.getItem('rishtedar_client') || 'null')?.phone || '')
-    : ''
+  useEffect(() => {
+    try {
+      setIdentity(JSON.parse(localStorage.getItem('rishtedar_client') || 'null'))
+    } catch {
+      setIdentity(null)
+    }
+  }, [])
+
+  const fetchCredits = useCallback(async (phone: string, businessId: string) => {
+    try {
+      const params = new URLSearchParams({
+        customer_phone: phone,
+        business_id: businessId,
+        week_start: getWeekStart(),
+      })
+      const res = await fetch(`/api/game/credits?${params.toString()}`)
+      if (!res.ok) {
+        setTokensLeft(0)
+        return
+      }
+      const json = await res.json()
+      setTokensLeft(Math.max(0, Number(json.credits_available ?? 0)))
+    } catch {
+      setTokensLeft(0)
+    }
+  }, [])
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -64,13 +78,13 @@ export default function TrackPage() {
       const data = await res.json()
       setOrder(data)
       setClientStatus(toClientStatus(data.status))
-      if (phone) setTokensLeft(getTokensLeft(phone, data.business_id))
+      if (identity?.phone) fetchCredits(identity.phone, data.business_id)
     } catch {
       // noop
     } finally {
       setLoading(false)
     }
-  }, [orderId, phone])
+  }, [fetchCredits, identity?.phone, orderId])
 
   useEffect(() => {
     fetchOrder()
@@ -79,25 +93,33 @@ export default function TrackPage() {
     return () => clearInterval(interval)
   }, [fetchOrder])
 
-  const handleGameEnd = useCallback((score: number, counted: boolean) => {
-    if (counted && order && phone) {
-      consumeToken(phone, order.business_id)
-      setTokensLeft(prev => Math.max(0, prev - 1))
-      // POST score to API (sin bloquear)
-      fetch('/api/game/score', {
+  const handleGameEnd = useCallback(async (score: number, counted: boolean) => {
+    if (counted && order && identity?.phone) {
+      const res = await fetch('/api/game/score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customer_phone: phone,
-          customer_name: JSON.parse(localStorage.getItem('rishtedar_client') || '{}')?.name || 'Anónimo',
+          customer_phone: identity.phone,
+          customer_name: identity.name,
           business_id: order?.business_id,
           score,
-          is_ranked: true,
           week_start: getWeekStart(),
         }),
-      }).catch(() => {})
+      }).catch(() => null)
+
+      if (!res?.ok) {
+        if (res?.status === 402) setTokensLeft(0)
+        return
+      }
+
+      const json = await res.json().catch(() => ({}))
+      if (json.credits_remaining !== undefined) {
+        setTokensLeft(Math.max(0, Number(json.credits_remaining)))
+      } else {
+        fetchCredits(identity.phone, order.business_id)
+      }
     }
-  }, [order, phone])
+  }, [fetchCredits, identity, order])
 
   if (loading) {
     return (
@@ -163,7 +185,7 @@ export default function TrackPage() {
                         Juega mientras esperas
                       </p>
                       <p className="text-warm-500 text-xs mt-0.5">
-                        Ranking semanal · {tokensLeft} intento{tokensLeft !== 1 ? 's' : ''} válido{tokensLeft !== 1 ? 's' : ''} disponible{tokensLeft !== 1 ? 's' : ''}
+                        Ranking semanal · {tokensLeft} ficha{tokensLeft !== 1 ? 's' : ''} para publicar
                       </p>
                     </div>
                   </div>

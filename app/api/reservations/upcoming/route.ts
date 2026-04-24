@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { requireStaffSession } from '@/lib/auth/session'
 import { LOCATIONS } from '@/lib/locations'
 import type { Reservation } from '@/types'
 
@@ -11,7 +12,10 @@ function businessDisplayName(businessId: string): string {
 
 const DAYS_ES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
+  const auth = await requireStaffSession()
+  if (!auth.ok) return auth.response
+
   try {
     const supabase = await createAdminClient()
     const { searchParams } = new URL(req.url)

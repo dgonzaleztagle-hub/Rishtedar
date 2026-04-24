@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateBranchToken } from '@/lib/staff-tokens'
-import { requireStaffSession } from '@/lib/auth/session'
+import { requireStaffSession, requireBranchAccess } from '@/lib/auth/session'
 import { awardPoints } from '@/lib/services/loyaltyService'
 
 // POST /api/staff/award
@@ -22,6 +22,9 @@ export async function POST(req: NextRequest) {
     } else {
       const auth = await requireStaffSession()
       if (!auth.ok) return auth.response
+      if (!requireBranchAccess(auth.profile, businessId)) {
+        return NextResponse.json({ error: 'Sin acceso a esta sucursal' }, { status: 403 })
+      }
     }
 
     if (typeof points !== 'number' || points <= 0 || points > 10000) {

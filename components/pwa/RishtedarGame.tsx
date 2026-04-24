@@ -379,17 +379,15 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   const [stageSize, setStageSize] = useState({ width: W, height: H })
   const [hudStats, setHudStats] = useState({ score: 0, combo: 0, lives: LIVES_MAX, tier: 1 as DifficultyTier })
   const [portraitHintDismissed, setPortraitHintDismissed] = useState(false)
+  const [browserCapabilities, setBrowserCapabilities] = useState({
+    supportsFullscreen: false,
+    isProbablyIOSSafari: false,
+  })
 
   const isPortraitViewport = viewportSize.height > viewportSize.width
   const isCompactViewport = viewportSize.width < 980 || viewportSize.height < 760
   const useCompactFullscreenChrome = isFullscreen && isCompactViewport
-  const supportsFullscreen =
-    typeof document !== 'undefined' && typeof document.documentElement.requestFullscreen === 'function'
-  const isProbablyIOSSafari =
-    typeof window !== 'undefined' &&
-    /iPhone|iPad|iPod/i.test(window.navigator.userAgent) &&
-    /WebKit/i.test(window.navigator.userAgent) &&
-    !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(window.navigator.userAgent)
+  const { supportsFullscreen, isProbablyIOSSafari } = browserCapabilities
   const portraitPreviewMode = isProbablyIOSSafari && isPortraitViewport && !isFullscreen
 
   const stagePaddingX = isFullscreen ? (useCompactFullscreenChrome ? 4 : 10) : 0
@@ -407,6 +405,22 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
   const showRotateHint = isFullscreen && isPortraitViewport
   const showPortraitPrompt =
     isPortraitViewport && !isFullscreen && (portraitPreviewMode || !portraitHintDismissed)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const timer = window.setTimeout(() => {
+      setBrowserCapabilities({
+        supportsFullscreen: typeof document.documentElement.requestFullscreen === 'function',
+        isProbablyIOSSafari:
+          /iPhone|iPad|iPod/i.test(window.navigator.userAgent) &&
+          /WebKit/i.test(window.navigator.userAgent) &&
+          !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(window.navigator.userAgent),
+      })
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [])
 
   const setGamePhase = useCallback((nextPhase: Phase) => {
     stateRef.current.phase = nextPhase
@@ -1360,8 +1374,8 @@ export function RishtedarGame({ onGameEnd, tokensLeft }: Props) {
 
                 <p className={`text-[#6a4a30] ${useCompactFullscreenChrome ? 'mt-4 text-[10px]' : 'mt-5 text-[11px]'}`}>
                   {tokensLeft > 0
-                    ? `${tokensLeft} intento${tokensLeft !== 1 ? 's' : ''} rankeado${tokensLeft !== 1 ? 's' : ''} esta semana`
-                    : 'Sin intentos rankeados esta semana · modo práctica'}
+                    ? `${tokensLeft} ficha${tokensLeft !== 1 ? 's' : ''} para publicar esta semana`
+                    : 'Sin fichas para publicar esta semana · modo práctica'}
                 </p>
                 <button
                   type="button"
@@ -2426,7 +2440,7 @@ function RankingButtons({
     return (
       <>
         <p className="mx-auto mt-6 max-w-md text-sm leading-relaxed text-[#f4d9bb]">
-          Puedes subir este score al ranking semanal. Quienes terminen top 3 se llevan un premio real del restaurant.
+          Puedes publicar este score usando 1 ficha semanal. Quienes terminen top 3 se llevan un premio real del restaurant.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <button
@@ -2434,7 +2448,7 @@ function RankingButtons({
             onClick={() => onRank(score)}
             className="rounded-full bg-[#c9952a] px-6 py-3 text-xs font-semibold uppercase tracking-[0.28em] text-[#25140c] transition-colors hover:bg-[#e0ae44]"
           >
-            Subir al ranking
+            Publicar score
           </button>
           <button
             type="button"
@@ -2452,7 +2466,7 @@ function RankingButtons({
   return (
     <>
       <p className="mx-auto mt-6 max-w-md text-sm leading-relaxed text-[#f4d9bb]">
-        Ya usaste tus intentos rankeados esta semana, pero puedes seguir practicando para perfeccionar la run.
+        No tienes fichas disponibles esta semana, pero puedes seguir practicando para perfeccionar la run.
       </p>
       <button
         type="button"
