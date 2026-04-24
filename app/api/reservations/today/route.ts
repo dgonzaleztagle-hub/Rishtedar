@@ -19,12 +19,18 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const today = searchParams.get('date') ?? new Date().toISOString().split('T')[0]
 
-    const { data, error } = await supabase
+    const isSuperAdmin = auth.profile.role === 'super_admin' || auth.profile.branches.includes('*')
+
+    let q = supabase
       .from('reservations')
       .select('*')
       .eq('reservation_date', today)
       .not('status', 'in', '(cancelled,completed)')
       .order('reservation_time', { ascending: true })
+
+    if (!isSuperAdmin) q = q.in('business_id', auth.profile.branches)
+
+    const { data, error } = await q
 
     if (error) throw error
 

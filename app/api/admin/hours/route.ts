@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
-import { requireStaffSession } from '@/lib/auth/session'
+import { requireStaffSession, requireBranchAccess } from '@/lib/auth/session'
 
 const DEFAULT_DELIVERY = {
   lun: { active: true, open: '12:00', close: '23:00' },
@@ -31,6 +31,10 @@ export async function GET(req: NextRequest) {
 
   const business_id = req.nextUrl.searchParams.get('business_id')
   if (!business_id) return NextResponse.json({ error: 'Falta business_id' }, { status: 400 })
+
+  if (!requireBranchAccess(auth.profile, business_id)) {
+    return NextResponse.json({ error: 'Sin acceso a esta sucursal' }, { status: 403 })
+  }
 
   try {
     const supabase = await createAdminClient()
@@ -65,6 +69,10 @@ export async function PUT(req: NextRequest) {
 
     if (!business_id || !type || !schedule) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
+    }
+
+    if (!requireBranchAccess(auth.profile, business_id)) {
+      return NextResponse.json({ error: 'Sin acceso a esta sucursal' }, { status: 403 })
     }
 
     const supabase = await createAdminClient()

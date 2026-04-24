@@ -30,7 +30,9 @@ export async function GET(req: NextRequest) {
     const fromStr = searchParams.get('from') ?? tomorrow.toISOString().split('T')[0]
     const toStr = searchParams.get('to') ?? ceiling.toISOString().split('T')[0]
 
-    const { data, error } = await supabase
+    const isSuperAdmin = auth.profile.role === 'super_admin' || auth.profile.branches.includes('*')
+
+    let q = supabase
       .from('reservations')
       .select('*')
       .gte('reservation_date', fromStr)
@@ -38,6 +40,10 @@ export async function GET(req: NextRequest) {
       .neq('status', 'cancelled')
       .order('reservation_date', { ascending: true })
       .order('reservation_time', { ascending: true })
+
+    if (!isSuperAdmin) q = q.in('business_id', auth.profile.branches)
+
+    const { data, error } = await q
 
     if (error) throw error
 
