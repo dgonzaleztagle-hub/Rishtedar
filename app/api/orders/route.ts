@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
-import { requireStaffSession } from '@/lib/auth/session'
+import { requireStaffSession, requireBranchAccess } from '@/lib/auth/session'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -125,6 +125,10 @@ export async function GET(req: NextRequest) {
 
   const isAdmin = business_id === 'admin' && auth.profile.role === 'super_admin'
 
+  if (!isAdmin && !requireBranchAccess(auth.profile, business_id)) {
+    return NextResponse.json({ error: 'Sin acceso a esta sucursal' }, { status: 403 })
+  }
+
   try {
     const supabase = await createAdminClient()
 
@@ -243,6 +247,20 @@ export async function PATCH(req: NextRequest) {
     }
 
     const supabase = await createAdminClient()
+
+    // Verificar que la orden pertenece a una sucursal accesible para este staff
+    if (auth.profile.role !== 'super_admin' && !auth.profile.branches.includes('*')) {
+      const { data: order } = await supabase
+        .from('orders')
+        .select('business_id')
+        .eq('id', id)
+        .single()
+
+      if (!order || !requireBranchAccess(auth.profile, order.business_id)) {
+        return NextResponse.json({ error: 'Sin acceso a esta orden' }, { status: 403 })
+      }
+    }
+
     const { error } = await supabase
       .from('orders')
       .update({ status })

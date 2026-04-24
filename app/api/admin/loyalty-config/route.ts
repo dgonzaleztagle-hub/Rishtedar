@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
-import { requireStaffSession } from '@/lib/auth/session'
+import { requireStaffSession, requireSuperAdmin } from '@/lib/auth/session'
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
 // Usados si la fila de DB está vacía (earn_rules/prizes/tier_benefits = []/[]/{}])
@@ -74,7 +74,7 @@ export async function GET() {
 // ─── PUT /api/admin/loyalty-config ───────────────────────────────────────────
 
 export async function PUT(req: NextRequest) {
-  const auth = await requireStaffSession()
+  const auth = await requireSuperAdmin()
   if (!auth.ok) return auth.response
   try {
     const { earn_rules, prizes, tier_benefits } = await req.json()

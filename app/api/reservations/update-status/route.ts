@@ -30,7 +30,7 @@ export async function PATCH(req: NextRequest) {
       update.check_in_time = new Date().toISOString()
     }
 
-    const { error } = await supabase.from('reservations').update(update).eq('id', id)
+    const { error } = await supabase.from('reservations').update(update).eq('id', id).eq('business_id', branch)
     if (error) throw error
 
     return NextResponse.json({ ok: true })

@@ -17,6 +17,9 @@ export async function GET() {
   const auth = await requireStaffSession()
   if (!auth.ok) return auth.response
 
+  const isSuperAdmin = auth.profile.role === 'super_admin' || auth.profile.branches.includes('*')
+  const allowedBranches = isSuperAdmin ? null : auth.profile.branches
+
   const supabase = await createAdminClient()
 
   const startOfDay = new Date()
@@ -26,6 +29,24 @@ export async function GET() {
   const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
 
   try {
+    let ordersQ = supabase
+      .from('orders')
+      .select('id, status, final_price, customer_phone, order_type, business_id, driver_id')
+      .gte('created_at', todayISO)
+    if (allowedBranches) ordersQ = ordersQ.in('business_id', allowedBranches)
+
+    let reservationsQ = supabase
+      .from('reservations')
+      .select('id, status, party, business_id')
+      .gte('created_at', todayISO)
+    if (allowedBranches) reservationsQ = reservationsQ.in('business_id', allowedBranches)
+
+    let beforeQ = supabase
+      .from('orders')
+      .select('customer_phone')
+      .lt('created_at', todayISO)
+    if (allowedBranches) beforeQ = beforeQ.in('business_id', allowedBranches)
+
     const [
       { data: ordersToday },
       { data: reservationsToday },
@@ -33,14 +54,8 @@ export async function GET() {
       { count: visitsToday },
       { data: beforeCustomers },
     ] = await Promise.all([
-      supabase
-        .from('orders')
-        .select('id, status, final_price, customer_phone, order_type, business_id, driver_id')
-        .gte('created_at', todayISO),
-      supabase
-        .from('reservations')
-        .select('id, status, party, business_id')
-        .gte('created_at', todayISO),
+      ordersQ,
+      reservationsQ,
       supabase
         .from('analytics_sessions')
         .select('session_id', { count: 'exact', head: true })
@@ -49,10 +64,7 @@ export async function GET() {
         .from('analytics_sessions')
         .select('session_id', { count: 'exact', head: true })
         .gte('started_at', todayISO),
-      supabase
-        .from('orders')
-        .select('customer_phone')
-        .lt('created_at', todayISO),
+      beforeQ,
     ])
 
     const orders = ordersToday ?? []
@@ -84,7 +96,11 @@ export async function GET() {
       .reduce((s, r) => s + (r.party ?? 0), 0)
 
     // ── Por local ─────────────────────────────────────────────────────────────
-    const branchList = KNOWN_BRANCHES.map(b => {
+    const visibleBranches = allowedBranches
+      ? KNOWN_BRANCHES.filter(b => allowedBranches.includes(b.id))
+      : KNOWN_BRANCHES
+
+    const branchList = visibleBranches.map(b => {
       const bOrders    = orders.filter(o => o.business_id === b.id)
       const bCompleted = bOrders.filter(o => o.status === 'completed')
       const bActive    = bOrders.filter(o => ACTIVE_STATUSES.includes(o.status))
