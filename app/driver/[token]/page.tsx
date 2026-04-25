@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   MapPin, Phone, Package, Navigation, CheckCircle2,
-  Camera, Loader2, AlertCircle, ExternalLink, ChevronRight,
+  Camera, Loader2, AlertCircle, ExternalLink, ChevronRight, MessageSquare,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCLP } from '@/lib/utils'
@@ -29,6 +29,7 @@ interface OrderData {
   delivery_latitude: number | null
   delivery_longitude: number | null
   final_price: number
+  customer_note?: string | null
 }
 
 interface TrackingData {
@@ -77,6 +78,9 @@ export default function DriverTokenPage({
   const [updating, setUpdating]   = useState(false)
   const [photoUploading, setPhotoUploading] = useState(false)
   const [photoUrl, setPhotoUrl]   = useState<string | null>(null)
+  const [driverNote, setDriverNote] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
+  const [noteSaved, setNoteSaved]   = useState(false)
   const fileInputRef              = useRef<HTMLInputElement>(null)
 
   // ── Resolve params ─────────────────────────────────────────────────────────
@@ -121,6 +125,7 @@ export default function DriverTokenPage({
       setItems(json.items ?? [])
       setTracking(json.tracking)
       setPhotoUrl(json.tracking?.delivery_photo_url ?? null)
+      setDriverNote(json.tracking?.driver_note ?? '')
     } catch {
       setError('Error al cargar los datos del pedido')
     } finally {
@@ -163,6 +168,23 @@ export default function DriverTokenPage({
       setTracking(prev => prev ? { ...prev, status: newStatus } : prev)
     } finally {
       setUpdating(false)
+    }
+  }
+
+  // ── Save driver note ──────────────────────────────────────────────────────
+  async function saveDriverNote() {
+    if (!token || token === 'demo-token') { setNoteSaved(true); setTimeout(() => setNoteSaved(false), 2000); return }
+    setSavingNote(true)
+    try {
+      await fetch(`/api/delivery/${token}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ driver_note: driverNote }),
+      })
+      setNoteSaved(true)
+      setTimeout(() => setNoteSaved(false), 2000)
+    } finally {
+      setSavingNote(false)
     }
   }
 
@@ -287,6 +309,12 @@ export default function DriverTokenPage({
                 <MapPin size={12} className="text-warm-500 mt-0.5 shrink-0" />
                 <p className="text-warm-400 text-sm leading-snug">{order.delivery_address ?? 'Dirección no disponible'}</p>
               </div>
+              {order.customer_note && (
+                <div className="mt-2 flex items-start gap-1.5 bg-amber-950/40 border border-amber-800/40 px-3 py-2">
+                  <MessageSquare size={11} className="text-amber-400 mt-0.5 shrink-0" />
+                  <p className="text-amber-300 text-xs leading-snug">{order.customer_note}</p>
+                </div>
+              )}
             </div>
             <a
               href={`tel:${order.customer_phone}`}
@@ -352,6 +380,25 @@ export default function DriverTokenPage({
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* ── Driver note ─────────────────────────────────────────────────── */}
+        <div className="bg-warm-900 border border-warm-800 p-4">
+          <p className="text-warm-500 text-[10px] tracking-wider uppercase mb-2">Nota interna</p>
+          <textarea
+            value={driverNote}
+            onChange={e => setDriverNote(e.target.value)}
+            placeholder="Ej: cliente complicado, interfono no funciona, 2do piso..."
+            rows={3}
+            className="w-full bg-warm-800 border border-warm-700 text-ivory text-sm px-3 py-2 resize-none placeholder:text-warm-600 focus:outline-none focus:border-warm-500"
+          />
+          <button
+            onClick={saveDriverNote}
+            disabled={savingNote}
+            className="mt-2 w-full bg-warm-800 hover:bg-warm-700 border border-warm-700 text-warm-300 text-xs py-2 transition-colors disabled:opacity-60"
+          >
+            {savingNote ? 'Guardando…' : noteSaved ? '✓ Guardado' : 'Guardar nota'}
+          </button>
+        </div>
 
         {/* ── Delivered success ────────────────────────────────────────────── */}
         <AnimatePresence>

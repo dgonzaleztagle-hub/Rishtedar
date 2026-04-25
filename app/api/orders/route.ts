@@ -11,6 +11,7 @@ interface TrackingRow {
   driver_name:  string | null
   driver_phone: string | null
   driver_token?: string | null
+  driver_note?:  string | null
 }
 
 interface ItemRow {
@@ -27,6 +28,7 @@ interface DbOrderRow {
   final_price:      number
   created_at:       string
   order_items:      ItemRow[] | null
+  customer_note?:   string | null
 }
 
 interface DbOrderAllRow {
@@ -62,11 +64,13 @@ function buildOrderShape(row: DbOrderRow, tracking: TrackingRow | null) {
     neighborhood,
     items,
     total:          row.final_price,
+    customer_note:   row.customer_note ?? null,
     tracking_status: tracking?.status    ?? null,
     driver_id:       tracking?.driver_id  ?? null,
     driver_name:     tracking?.driver_name ?? null,
     driver_phone:    tracking?.driver_phone ?? null,
     driver_token:    tracking?.driver_token ?? null,
+    driver_note:     tracking?.driver_note ?? null,
   }
 }
 
@@ -140,7 +144,7 @@ export async function GET(req: NextRequest) {
     if (view === 'delivery') {
       let q = supabase
         .from('orders')
-        .select('id, order_number, customer_name, customer_phone, delivery_address, final_price, created_at')
+        .select('id, order_number, customer_name, customer_phone, delivery_address, final_price, created_at, customer_note')
         .eq('order_type', 'delivery')
         .in('status', ['confirmed', 'preparing', 'ready', 'completed'])
         .gte('created_at', since.toISOString())
@@ -159,7 +163,7 @@ export async function GET(req: NextRequest) {
       const trackingMap: Record<string, TrackingRow> = {}
       const { data: trackingFull, error: trackingFullError } = await supabase
         .from('delivery_tracking')
-        .select('order_id, status, driver_id, driver_name, driver_phone, driver_token')
+        .select('order_id, status, driver_id, driver_name, driver_phone, driver_token, driver_note')
         .in('order_id', orderIds)
 
       if (!trackingFullError && trackingFull) {

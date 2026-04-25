@@ -30,7 +30,7 @@ export async function GET(
     // 2. Obtener la orden
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, order_number, customer_name, customer_phone, delivery_address, delivery_latitude, delivery_longitude, final_price')
+      .select('id, order_number, customer_name, customer_phone, delivery_address, delivery_latitude, delivery_longitude, final_price, customer_note')
       .eq('id', tracking.order_id)
       .single()
 
@@ -69,11 +69,14 @@ export async function PATCH(
 
   try {
     const body = await req.json()
-    const { status, delivery_photo_url } = body
+    const { status, delivery_photo_url, driver_note } = body
 
     const validStatuses = ['assigned', 'pickup', 'in_transit', 'delivered']
-    if (!validStatuses.includes(status)) {
+    if (status !== undefined && !validStatuses.includes(status)) {
       return NextResponse.json({ error: 'Estado inválido' }, { status: 400 })
+    }
+    if (!status && driver_note === undefined) {
+      return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 })
     }
 
     const supabase = await createAdminClient()
@@ -90,9 +93,13 @@ export async function PATCH(
     }
 
     // 2. Actualizar delivery_tracking
-    const updatePayload: Record<string, unknown> = { status }
-    if (delivery_photo_url) updatePayload.delivery_photo_url = delivery_photo_url
-    if (status === 'delivered') updatePayload.updated_at = new Date().toISOString()
+    const updatePayload: Record<string, unknown> = {}
+    if (status) {
+      updatePayload.status = status
+      if (delivery_photo_url) updatePayload.delivery_photo_url = delivery_photo_url
+      if (status === 'delivered') updatePayload.updated_at = new Date().toISOString()
+    }
+    if (driver_note !== undefined) updatePayload.driver_note = driver_note
 
     const { error: updateError } = await supabase
       .from('delivery_tracking')
@@ -101,19 +108,21 @@ export async function PATCH(
 
     if (updateError) throw updateError
 
-    // 3. Sincronizar status en orders table
-    const orderStatusMap: Record<string, string> = {
-      assigned: 'confirmed',
-      pickup: 'preparing',
-      in_transit: 'preparing',
-      delivered: 'completed',
+    // 3. Sincronizar status en orders table (solo si cambió el estado)
+    if (status) {
+      const orderStatusMap: Record<string, string> = {
+        assigned: 'confirmed',
+        pickup: 'preparing',
+        in_transit: 'preparing',
+        delivered: 'completed',
+      }
+      await supabase
+        .from('orders')
+        .update({ status: orderStatusMap[status] })
+        .eq('id', tracking.order_id)
     }
-    await supabase
-      .from('orders')
-      .update({ status: orderStatusMap[status] })
-      .eq('id', tracking.order_id)
 
-    return NextResponse.json({ ok: true, status })
+    return NextResponse.json({ ok: true, status: status ?? null })
   } catch (err) {
     console.error('[delivery/token PATCH]', err)
     return NextResponse.json({ error: 'Error al actualizar estado' }, { status: 500 })

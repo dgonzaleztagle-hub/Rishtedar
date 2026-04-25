@@ -32,7 +32,8 @@ interface DeliveryOrder {
   driver_phone?:  string
   driver_token?:  string
   distance_km:    number
-  notes?:         string
+  customer_note?: string
+  driver_note?:   string
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -134,6 +135,7 @@ export function DeliveryView() {
         address: string; neighborhood: string; items: string[]; total: number
         tracking_status: string | null; driver_id: string | null; driver_name: string | null
         driver_phone: string | null; driver_token: string | null
+        customer_note: string | null; driver_note: string | null
       }) => ({
         id:            row.id,
         order_number:  row.order_number,
@@ -149,6 +151,8 @@ export function DeliveryView() {
         driver_phone:  row.driver_phone ?? undefined,
         driver_token:  row.driver_token ?? undefined,
         distance_km:   0,
+        customer_note: row.customer_note ?? undefined,
+        driver_note:   row.driver_note   ?? undefined,
       }))
 
       setOrders(mapped)
@@ -192,6 +196,7 @@ export function DeliveryView() {
           const updated = payload.new as {
             order_id: string; status: string
             driver_name?: string; driver_id?: string; driver_token?: string
+            driver_note?: string | null
           }
           if (!updated?.order_id) return
           setOrders(prev => prev.map(o =>
@@ -202,6 +207,7 @@ export function DeliveryView() {
                   driver_name:  updated.driver_name  ?? o.driver_name,
                   driver_id:    updated.driver_id    ?? o.driver_id,
                   driver_token: updated.driver_token ?? o.driver_token,
+                  driver_note:  updated.driver_note  ?? o.driver_note,
                 }
               : o
           ))
@@ -514,7 +520,12 @@ export function DeliveryView() {
                       <div>
                         <p className="text-warm-400 uppercase tracking-wider text-[10px] mb-1">Destino</p>
                         <p className="text-warm-700 leading-snug">{order.address}</p>
-                        {order.notes && <p className="text-amber-600 mt-1">⚠ {order.notes}</p>}
+                        {order.customer_note && (
+                          <p className="text-blue-600 mt-1 text-[11px]">💬 Cliente: {order.customer_note}</p>
+                        )}
+                        {order.driver_note && (
+                          <p className="text-amber-600 mt-1 text-[11px]">⚠ Driver: {order.driver_note}</p>
+                        )}
                       </div>
                       <div>
                         <p className="text-warm-400 uppercase tracking-wider text-[10px] mb-1">Total</p>

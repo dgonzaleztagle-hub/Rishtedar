@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const {
       businessId, customerName, customerPhone, customerEmail,
-      deliveryAddress, orderType, items, promoId,
+      deliveryAddress, orderType, items, promoId, customerNote,
     } = body
 
     if (!businessId || !customerName || !customerPhone || !items?.length) {
@@ -97,6 +97,7 @@ export async function POST(req: NextRequest) {
         status:           'pending',
         payment_status:   'pending',
         promo_id:         promoId || null,
+        customer_note:    customerNote || null,
       })
       .select('id')
       .single()
